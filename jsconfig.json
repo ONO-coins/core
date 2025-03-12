@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "allowJs": true,
+        "checkJs": true,
+        "target": "ES2023",
+        "moduleResolution": "node",
+        "resolveJsonModule": true
+    }
+}

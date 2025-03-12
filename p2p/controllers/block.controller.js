@@ -1,0 +1,98 @@
+const blockDao = require('../../databases/postgres/dao/block.dao');
+const balanceDao = require('../../databases/postgres/dao/balance.dao');
+const blockTransactionDao = require('../../databases/postgres/dao/block-transaction.dao');
+const blockGeneralController = require('../../controllers/block.controller');
+const blockService = require('../../services/block.service');
+const blockTransactionService = require('../../services/block-transaction.servise');
+const p2pActions = require('../p2p-actions');
+const state = require('../../state');
+const { logger } = require('../../managers/log.manager');
+const { ERROR_TYPES } = require('../../constructors/error.constructor');
+const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
+
+/**
+ * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
+ * @typedef {import('services/block.service').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('ws')} WebSocket
+ */
+
+/**
+ * @param {BlockWithTransactions} blockData
+ * @param {WebSocket} socket
+ * @param {string} [sernderKey]
+ */
+exports.onBlock = async (blockData, socket, sernderKey) => {
+    try {
+        if (state.isSyncing()) return;
+        await blockGeneralController.onBlock(blockData);
+        state.validBlock(blockData.id);
+        state.setImmutableBlockId(blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+        logger.info(`New valid block ${blockData.id} received`);
+        p2pActions.broadcastBlock(blockData, [sernderKey]);
+    } catch (err) {
+        logger.warn(`Block ${blockData?.id} error: ${err.message}`);
+        if (err.errorType === ERROR_TYPES.SYNC_ERROR) {
+            state.invalidBlock(blockData.target, blockData.id);
+            const invalidBlockStats = state.invalidBlockStats();
+            const needSync = await blockService.checkInvalidBlockStats(invalidBlockStats);
+            if (!needSync) return;
+
+            state.startSync();
+            const immutableBlockId = await blockService.getImmutableBlockId();
+            await balanceDao.flushBalancesFromBlock(immutableBlockId);
+            p2pActions.syncRequest(socket, immutableBlockId);
+        }
+    }
+};
+
+/**
+ * @param {Object} data
+ * @param {number} data.lastBlockId
+ * @param {WebSocket} socket
+ */
+exports.syncRequest = async (data, socket) => {
+    logger.debug(`Sync request from ${data.lastBlockId}`);
+    const chain = await blockDao.getBlocksFrom(data.lastBlockId);
+    p2pActions.sendChain(socket, chain);
+};
+
+/**
+ * @param {Array<BlockWithTransactions>} chain
+ * @param {WebSocket} socket
+ */
+exports.onChain = async (chain, socket) => {
+    if (!chain.length) return;
+    if (!state.isSyncing() || state.chainProcessing()) return;
+    state.startChainProcessing();
+
+    try {
+        const chainValidationResult = await blockTransactionService.validateChain(chain);
+        if (!chainValidationResult.valid) throw new Error(chainValidationResult.error);
+
+        await blockTransactionDao.removeSinceBlockId(chainValidationResult.initialBlockId);
+
+        for (let i = 0; i < chain.length; i++) {
+            await blockGeneralController.onBlock(chain[i]);
+        }
+
+        const lastBlock = chain[chain.length - 1];
+
+        if (chain.length < BLOCKCHAIN_SETTINGS.SYNCHRONIZATION_BATCH) {
+            state.stopSync();
+            state.setSynchronized();
+            state.stopChainProcessing();
+            logger.info(`Chain syncronized!`);
+            state.startForging();
+            return;
+        }
+
+        logger.info(`Chain syncronizing... Last block id: ${lastBlock.id}`);
+        state.stopChainProcessing();
+        p2pActions.broadcastSyncRequest(lastBlock.id);
+    } catch (error) {
+        logger.warn(`Chain error: ${error}`);
+        state.stopChainProcessing();
+        state.stopSync();
+        state.startForging();
+    }
+};

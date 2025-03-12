@@ -1,0 +1,33 @@
+{
+    "name": "ono-core",
+    "version": "1.0.8",
+    "description": "ono cryptocurrency core",
+    "main": "app.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "clean-start": "node app.js",
+        "start": "node --env-file=.env app.js",
+        "dev": "node --env-file=.env --watch app.js | pino-pretty -S -i pid,hostname",
+        "dev-test-1": "node --env-file=.env.development.local --watch app.js | pino-pretty -S -i pid,hostname",
+        "dev-test-2": "node --env-file=.env.test.local --watch app.js | pino-pretty -S -i pid,hostname"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "ajv": "^8.17.1",
+        "big.js": "^6.2.2",
+        "bip39": "^3.1.0",
+        "cors": "^2.8.5",
+        "elliptic": "^6.6.0",
+        "express-openapi-validator": "^5.3.9",
+        "hdkey": "^2.1.0",
+        "pg": "^8.13.1",
+        "pino": "^9.5.0",
+        "pluralize": "^8.0.0",
+        "sequelize": "^6.37.5",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "pino-pretty": "^11.3.0"
+    }
+}

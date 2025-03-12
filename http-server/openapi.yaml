@@ -1,0 +1,266 @@
+openapi: 3.0.0
+
+info:
+    title: Game Reward Core API
+    version: 0.0.1
+
+servers:
+    - url: http://localhost:3000
+
+paths:
+    /transaction/generate:
+        post:
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/GenerateTransactionBody'
+                required: true
+            responses:
+                '200':
+                    description: Successful operation
+
+    /transaction/init:
+        post:
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Transaction'
+                required: true
+            responses:
+                '200':
+                    description: Successful operation
+
+    /transaction/by-address/{address}:
+        get:
+            parameters:
+                - in: path
+                  name: address
+                  schema:
+                      type: string
+                      minLength: 66
+                      maxLength: 66
+                  required: true
+                - in: query
+                  name: limit
+                  schema:
+                      type: integer
+                      minimum: 0
+                      maximum: 30
+                - in: query
+                  name: skip
+                  schema:
+                      type: integer
+                      minimum: 0
+                - in: query
+                  name: maxId
+                  schema:
+                      type: integer
+                      minimum: 0
+                - in: query
+                  name: order
+                  schema:
+                      type: string
+                      enum: ['ASC', 'DESC']
+                - in: query
+                  name: direction
+                  schema:
+                      type: string
+                      enum: ['to', 'from']
+                - in: query
+                  name: hash
+                  schema:
+                      type: string
+                      minLength: 64
+                      maxLength: 64
+            responses:
+                '200':
+                    description: Successful operation
+    /transaction/by-hash/{hash}:
+        get:
+            parameters:
+                - in: path
+                  name: hash
+                  schema:
+                      type: string
+                      minLength: 64
+                      maxLength: 64
+                  required: true
+            responses:
+                '200':
+                    description: Successful operation
+
+    /transaction/count-by-address/{address}:
+        get:
+            parameters:
+                - in: path
+                  name: address
+                  schema:
+                      type: string
+                      minLength: 66
+                      maxLength: 66
+                  required: true
+            responses:
+                '200':
+                    description: Successful operation
+
+    /peer:
+        post:
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Peer'
+                required: true
+            responses:
+                '200':
+                    description: Successful operation
+
+    /block/{id}:
+        get:
+            parameters:
+                - in: path
+                  name: id
+                  schema:
+                      type: integer
+                      minimum: 0
+                  required: true
+            responses:
+                '200':
+                    description: OK
+
+    /balance/{address}:
+        get:
+            parameters:
+                - in: path
+                  name: address
+                  schema:
+                      type: string
+                      minLength: 66
+                      maxLength: 66
+                  required: true
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Balance'
+    /block/chain:
+        get:
+            parameters:
+                - in: query
+                  name: fromId
+                  schema:
+                      type: integer
+                      minimum: 0
+                - in: query
+                  name: limit
+                  schema:
+                      type: integer
+                      minimum: 0
+                      maximum: 30
+            responses:
+                '200':
+                    description: OK
+
+    /secure/remove-chain-to/{blockId}:
+        get:
+            parameters:
+                - in: header
+                  name: authorization
+                  schema:
+                      type: string
+                  required: true
+                - in: path
+                  name: blockId
+                  schema:
+                      type: integer
+                      minimum: 0
+                  required: true
+            responses:
+                '200':
+                    description: OK
+components:
+    schemas:
+        Balance:
+            type: object
+            properties:
+                address:
+                    type: string
+                    minLength: 66
+                    maxLength: 66
+                balance:
+                    type: number
+                    minimum: 0
+                burned:
+                    type: number
+                    minimum: 0
+                affectedBlockId:
+                    type: number
+                    minimum: 0
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+        Transaction:
+            required:
+                - from
+                - to
+                - amount
+                - timestamp
+                - fee
+                - hash
+                - signature
+            type: object
+            properties:
+                from:
+                    type: string
+                    minLength: 66
+                    maxLength: 66
+                to:
+                    type: string
+                    minLength: 66
+                    maxLength: 66
+                amount:
+                    type: number
+                    minimum: 0.00000001
+                fee:
+                    type: number
+                    minimum: 0.00000000001
+                timestamp:
+                    type: integer
+                hash:
+                    type: string
+                    minLength: 64
+                    maxLength: 64
+                signature:
+                    type: string
+                    minLength: 128
+                    maxLength: 128
+            additionalProperties: false
+        GenerateTransactionBody:
+            required:
+                - to
+                - amount
+            type: object
+            properties:
+                to:
+                    type: string
+                    minLength: 66
+                    maxLength: 66
+                amount:
+                    type: number
+                    minimum: 0.00000001
+            additionalProperties: false
+        Peer:
+            required:
+                - address
+            type: object
+            properties:
+                address:
+                    type: string
+                    format: uri
+                    pattern: '^(http|https)://.*$'
+            additionalProperties: false
