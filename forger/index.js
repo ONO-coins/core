@@ -67,6 +67,7 @@ exports.forge = async () => {
     const hitVerified = await forgerService.verifyHit(lastBlock, timestamp, publicKey);
 
     if (hitVerified) {
+        logger.info(`Creating new block...`);
         const newBlock = await generateBlock(lastBlock, timestamp);
         if (newBlock) {
             logger.info(`New block ${newBlock.id} created`);

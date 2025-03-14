@@ -7,6 +7,7 @@ const blockTransactionService = require('../../services/block-transaction.servis
 const p2pActions = require('../p2p-actions');
 const state = require('../../state');
 const { logger } = require('../../managers/log.manager');
+const { UniqueConstraintError } = require('sequelize');
 const { ERROR_TYPES } = require('../../constructors/error.constructor');
 const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
 
@@ -31,6 +32,12 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
         p2pActions.broadcastBlock(blockData, [sernderKey]);
     } catch (err) {
         logger.warn(`Block ${blockData?.id} error: ${err.message}`);
+
+        if (err instanceof UniqueConstraintError) {
+            await this.onBlock(blockData, socket, sernderKey);
+            return;
+        }
+
         if (err.errorType === ERROR_TYPES.SYNC_ERROR) {
             state.invalidBlock(blockData.target, blockData.id);
             const invalidBlockStats = state.invalidBlockStats();

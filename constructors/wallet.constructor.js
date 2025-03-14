@@ -17,7 +17,10 @@ class Wallet {
      * @returns {Promise<Buffer>}
      */
     async #getOrCreateSeedBuffer() {
-        const secretPath = path.join(process.cwd(), '/secrets/secret.txt');
+        const secretLocalPath = process.env.SECRET_PATH
+            ? process.env.SECRET_PATH
+            : '/secrets/secret.txt';
+        const secretPath = path.join(process.cwd(), secretLocalPath);
         try {
             const seed = fs.readFileSync(secretPath, 'utf8');
             return Buffer.from(seed, 'hex');

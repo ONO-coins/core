@@ -1,7 +1,4 @@
-const balanceDao = require('../../databases/postgres/dao/balance.dao');
-const blockTransactionDao = require('../../databases/postgres/dao/block-transaction.dao');
-const state = require('../../state');
-const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
+const sharedBlockService = require('../../services/shared/block.service');
 
 /**
  * @typedef {import('express').Request} Request
@@ -14,8 +11,6 @@ const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
  */
 exports.removeChainTo = async (req, res) => {
     const blockId = Number(req.params.blockId);
-    await blockTransactionDao.removeSinceBlockId(blockId);
-    await balanceDao.flushBalancesFromBlock(blockId);
-    state.setImmutableBlockId(blockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+    await sharedBlockService.removeChainSince(blockId);
     res.json({ blockId });
 };

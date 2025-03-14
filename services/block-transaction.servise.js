@@ -90,3 +90,13 @@ exports.validateChain = async (chain) => {
 
     return { valid: true, initialBlockId: initialBlock.id };
 };
+
+/**
+ * @param {BlockWithTransactions} block
+ * @returns {Promise<boolean>}
+ */
+exports.compareBlockTransactionSum = async (block) => {
+    const blockTransactionStats = this.calculateTransactionStats([block]);
+    const uniqueTransactionsSum = await blockTransactionDao.transactionSumFromBlockId(block.id - 1);
+    return uniqueTransactionsSum <= blockTransactionStats.sum;
+};

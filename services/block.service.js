@@ -5,12 +5,14 @@ const blockTransactionDao = require('../databases/postgres/dao/block-transaction
 const balanceDao = require('../databases/postgres/dao/balance.dao');
 const cryptoUtilsLib = require('../lib/crypto-utils.lib');
 const wallet = require('../wallet');
+const { SyncError } = require('../constructors/error.constructor');
 const {
     BLOCKCHAIN_SETTINGS,
     INITIAL_BLOCK,
     INITIAL_TRANSACTIONS,
     INITIAL_TRANSACTIONS_TESTNET,
     HASH_PARAMS,
+    BLOCK_ID_ACTIONS,
 } = require('../constants/app.constants');
 
 /**
@@ -133,16 +135,17 @@ exports.init = async () => {
 };
 
 /**
- * @param {number} newBlockId
- * @returns {Promise<{exists: boolean, needSync: boolean}>}
+ * @param {Block} newBlock
+ * @returns {Promise<string>}
  */
-exports.checkNewBlockId = async (newBlockId) => {
+exports.checkNewBlockId = async (newBlock) => {
     const lastBlock = await blockDao.getLastBlock();
-    if (lastBlock.id >= newBlockId) return { exists: true, needSync: false };
-    const lag = newBlockId - lastBlock.id;
-    if (lag > 10) return { exists: false, needSync: true };
-    if (lag > 1) return { exists: false, needSync: false };
-    return { exists: false, needSync: false };
+    if (lastBlock.id === newBlock.id) return BLOCK_ID_ACTIONS.NEED_REPLACE;
+    if (lastBlock.id > newBlock.id) throw new Error(`Block already exists.`);
+    const lag = newBlock.id - lastBlock.id;
+    if (lag > 10) throw new SyncError(`Block is too far away. Need sync.`);
+    if (lag > 1) throw new Error(`Block is too far away.`);
+    return BLOCK_ID_ACTIONS.NO_ACTION_NEED;
 };
 
 /**

@@ -51,6 +51,6 @@ exports.verifyHit = async (latestBlock, timestamp, publicKey) => {
  * @returns {Promise<boolean>}
  */
 exports.verifyBlockHit = async (block) => {
-    const lastBlock = await blockDao.getLastBlock();
+    const lastBlock = await blockDao.getById(block.id - 1);
     return this.verifyHit(lastBlock, block.timestamp, block.publicKey);
 };
