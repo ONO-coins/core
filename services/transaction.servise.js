@@ -66,13 +66,17 @@ exports.validateTransactionBalance = async (transaction) => {
     const balanceRecord = await balanceDao.getBalance(transaction.from);
     const amount = transaction.amount + transaction.fee;
 
-    if (balanceRecord) {
-        return balanceRecord.balance > amount;
-    }
+    if (balanceRecord && balanceRecord.balance > amount) return true;
 
     const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(transaction.from);
     const lastBlockId = await blockDao.getLastBlock();
-    await balanceDao.create(transaction.from, balance, burnedBalance, lastBlockId.id);
+
+    if (balanceRecord) {
+        await balanceDao.updateBalances(transaction.from, balance, burnedBalance);
+    } else {
+        await balanceDao.create(transaction.from, balance, burnedBalance, lastBlockId.id);
+    }
+
     return balance > amount;
 };
 
