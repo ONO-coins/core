@@ -17,6 +17,7 @@ class State {
     #blockStats;
     #chainProcessing;
     #id;
+    #processingBlock;
 
     constructor() {
         this.#forging = process.env.FORGING === 'true';
@@ -148,6 +149,17 @@ class State {
 
     id() {
         return this.#id;
+    }
+
+    /**
+     * @param {number} id
+     */
+    setProcessindBlock(id) {
+        this.#processingBlock = id;
+    }
+
+    getProcessindBlock() {
+        return this.#processingBlock;
     }
 }
 

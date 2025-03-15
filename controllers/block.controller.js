@@ -8,6 +8,7 @@ const transactionPoolDao = require('../databases/postgres/dao/transaction-pool.d
 const blockTransactionDao = require('../databases/postgres/dao/block-transaction.dao');
 const blockDao = require('../databases/postgres/dao/block.dao');
 const sharedBlockService = require('../services/shared/block.service');
+const state = require('../state');
 const { BLOCK_ID_ACTIONS } = require('../constants/app.constants');
 
 const sequelize = database.getSequelize();
@@ -19,8 +20,12 @@ const sequelize = database.getSequelize();
 
 /**
  * @param {BlockWithTransactions} blockData
+ * @returns {Promise<boolean>}
  */
 exports.onBlock = async (blockData) => {
+    if (blockData.id === state.getProcessindBlock()) return false;
+    state.setProcessindBlock(blockData.id);
+
     // check if block exists or we are too far away
     const existingCheck = await blockService.checkNewBlockId(blockData);
     if (existingCheck === BLOCK_ID_ACTIONS.NEED_REPLACE) {
@@ -73,7 +78,9 @@ exports.onBlock = async (blockData) => {
         await transactionPoolDao.dropTransactions(transactionHashes, databaseTransaction);
 
         await databaseTransaction.commit();
+        return true;
     } catch (err) {
+        state.setProcessindBlock(0);
         await databaseTransaction.rollback();
         throw err;
     }

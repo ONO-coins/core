@@ -143,8 +143,7 @@ exports.checkNewBlockId = async (newBlock) => {
     if (lastBlock.id === newBlock.id) return BLOCK_ID_ACTIONS.NEED_REPLACE;
     if (lastBlock.id > newBlock.id) throw new Error(`Block already exists.`);
     const lag = newBlock.id - lastBlock.id;
-    if (lag > 10) throw new SyncError(`Block is too far away. Need sync.`);
-    if (lag > 1) throw new Error(`Block is too far away.`);
+    if (lag > 1) throw new SyncError(`Block is too far away. Need sync.`);
     return BLOCK_ID_ACTIONS.NO_ACTION_NEED;
 };
 

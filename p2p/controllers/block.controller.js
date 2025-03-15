@@ -25,7 +25,9 @@ const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
 exports.onBlock = async (blockData, socket, sernderKey) => {
     try {
         if (state.isSyncing()) return;
-        await blockGeneralController.onBlock(blockData);
+        const success = await blockGeneralController.onBlock(blockData);
+        if (!success) return;
+
         state.validBlock(blockData.id);
         state.setImmutableBlockId(blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
         logger.info(`New valid block ${blockData.id} received`);

@@ -57,30 +57,30 @@ const generateBlock = async (lastBlock, timestamp) => {
 };
 
 exports.forge = async () => {
-    if (!state.isForging()) {
-        await utilsLib.sleep(1000);
-        await this.forge();
-        return;
-    }
-    const lastBlock = await blockDao.getLastBlock();
-    const timestamp = Math.round(Date.now() / 1000);
-    const hitVerified = await forgerService.verifyHit(lastBlock, timestamp, publicKey);
+    if (!state.isForging()) return;
 
-    if (hitVerified) {
-        logger.info(`Creating new block...`);
-        const newBlock = await generateBlock(lastBlock, timestamp);
-        if (newBlock) {
-            logger.info(`New block ${newBlock.id} created`);
-            p2pActions.broadcastBlock(newBlock);
+    try {
+        const lastBlock = await blockDao.getLastBlock();
+        if (lastBlock.id + 1 === state.getProcessindBlock()) return;
+
+        const timestamp = Math.round(Date.now() / 1000);
+        const hitVerified = await forgerService.verifyHit(lastBlock, timestamp, publicKey);
+
+        if (hitVerified) {
+            logger.info(`Creating new block...`);
+            const newBlock = await generateBlock(lastBlock, timestamp);
+            if (newBlock) {
+                logger.info(`New block ${newBlock.id} created`);
+                p2pActions.broadcastBlock(newBlock);
+            }
         }
+    } catch (err) {
+        logger.error(err);
     }
-
-    await utilsLib.sleep(1000);
-    await this.forge();
 };
 
 exports.start = async () => {
     logger.info('Forger started. A message will be provided if a new block is forged.');
     if (!state.isForging()) return;
-    this.forge();
+    setInterval(this.forge, 1000);
 };
