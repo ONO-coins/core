@@ -28,7 +28,7 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
         const success = await blockGeneralController.onBlock(blockData);
         if (!success) return;
 
-        state.validBlock(blockData.id);
+        // state.validBlock(blockData.id);
         state.setImmutableBlockId(blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
         logger.info(`New valid block ${blockData.id} received`);
         p2pActions.broadcastBlock(blockData, [sernderKey]);
@@ -41,13 +41,16 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
         }
 
         if (err.errorType === ERROR_TYPES.SYNC_ERROR) {
-            state.invalidBlock(blockData.target, blockData.id);
-            const invalidBlockStats = state.invalidBlockStats();
-            const needSync = await blockService.checkInvalidBlockStats(invalidBlockStats);
-            if (!needSync) return;
+            // state.invalidBlock(blockData.target, blockData.id);
+            // const invalidBlockStats = state.invalidBlockStats();
+            // const needSync = await blockService.checkInvalidBlockStats(invalidBlockStats);
+            // if (!needSync) return;
 
             state.startSync();
             const immutableBlockId = await blockService.getImmutableBlockId();
+            state.setImmutableBlockId(
+                immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT,
+            );
             await balanceDao.flushBalancesFromBlock(immutableBlockId);
             p2pActions.syncRequest(socket, immutableBlockId);
         }
