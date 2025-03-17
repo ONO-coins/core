@@ -9,6 +9,13 @@ exports.getSockets = () => {
 };
 
 /**
+ * @returns {number}
+ */
+exports.getSize = () => {
+    return sockets.size;
+};
+
+/**
  *
  * @param {string} id
  * @returns {boolean}

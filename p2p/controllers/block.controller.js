@@ -51,7 +51,6 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
             state.setImmutableBlockId(
                 immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT,
             );
-            await balanceDao.flushBalancesFromBlock(immutableBlockId);
             p2pActions.syncRequest(socket, immutableBlockId);
         }
     }
@@ -82,6 +81,7 @@ exports.onChain = async (chain, socket) => {
         if (!chainValidationResult.valid) throw new Error(chainValidationResult.error);
 
         await blockTransactionDao.removeSinceBlockId(chainValidationResult.initialBlockId);
+        await balanceDao.flushBalancesFromBlock(chainValidationResult.initialBlockId);
 
         for (let i = 0; i < chain.length; i++) {
             await blockGeneralController.onBlock(chain[i]);

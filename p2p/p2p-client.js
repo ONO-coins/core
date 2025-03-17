@@ -59,7 +59,7 @@ exports.connectToPear = (address, gossip) => {
         clearInterval(pingInterval);
         if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(peer);
         p2pHandlers.socketDisconnected(socket, peer);
-        if (sockets.size < MIN_PEERS_COUNT) {
+        if (p2pSockets.getSize() < MIN_PEERS_COUNT) {
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
             reconnectTimeout = setTimeout(this.reconnect, DEFAULT_PEERS_RECONNECTION_TIMEOUT);
         }
