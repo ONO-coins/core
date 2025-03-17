@@ -1,15 +1,9 @@
 const WebSocket = require('ws');
 const p2pSockets = require('./p2p-sockets');
 const p2pHandlers = require('./p2p-handlers');
-const p2pClient = require('./p2p-client');
 const state = require('../state');
 const { logger } = require('../managers/log.manager');
-const {
-    NODE_ID_HEADER,
-    MIN_PEERS_COUNT,
-    DEFAULT_PEERS_RECONNECTION_TIMEOUT,
-    SELF_CONNECTION_ERROR_CODE,
-} = require('../constants/p2p.constants');
+const { NODE_ID_HEADER, SELF_CONNECTION_ERROR_CODE } = require('../constants/p2p.constants');
 
 /**
  * @typedef {import('ws').WebSocket & { _socket: import('net').Socket }} WebSocketWithSocket
@@ -51,9 +45,6 @@ function serverConnectionHandler(socket, request) {
     socket.on('close', (code) => {
         if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(id);
         p2pHandlers.socketDisconnected(socket, id);
-        if (sockets.size < MIN_PEERS_COUNT) {
-            setTimeout(p2pClient.reconnect, DEFAULT_PEERS_RECONNECTION_TIMEOUT);
-        }
     });
 }
 

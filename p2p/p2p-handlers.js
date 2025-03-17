@@ -33,13 +33,11 @@ exports.socketConnected = async (socket, socketKey, serverConnection) => {
 /**
  * @param {WebSocket} socket
  * @param {string} socketKey
- * @returns {void}
+ * @returns {Promise<void>}
  */
-exports.socketDisconnected = (socket, socketKey) => {
+exports.socketDisconnected = async (socket, socketKey) => {
     const disconnectionTime = new Date();
     const sockets = p2pSockets.getSockets();
     logger.info(`Socket ${socketKey} closed, Connections count: ${sockets.size}`);
-    setTimeout(async () => {
-        await peerService.disconnect(socketKey, disconnectionTime);
-    }, NETWORK_LAG);
+    await peerService.disconnect(socketKey, disconnectionTime);
 };

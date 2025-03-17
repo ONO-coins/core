@@ -1,6 +1,6 @@
 {
     "name": "ono-core",
-    "version": "1.0.15",
+    "version": "1.0.16",
     "description": "ono cryptocurrency core",
     "main": "app.js",
     "scripts": {
@@ -8,8 +8,8 @@
         "clean-start": "node app.js",
         "start": "node --env-file=.env app.js",
         "dev": "node --env-file=.env --watch app.js | pino-pretty -S -i pid,hostname",
-        "dev-test-1": "node --env-file=.env.development.local --watch app.js | pino-pretty -S -i pid,hostname",
-        "dev-test-2": "node --env-file=.env.test.local --watch app.js | pino-pretty -S -i pid,hostname"
+        "dev-test-1": "node --env-file=.env.development.local-1 --watch app.js | pino-pretty -S -i pid,hostname",
+        "dev-test-2": "node --env-file=.env.development.local-2 --watch app.js | pino-pretty -S -i pid,hostname"
     },
     "author": "",
     "license": "ISC",

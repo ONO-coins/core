@@ -14,12 +14,15 @@ const {
     SELF_CONNECTION_ERROR_CODE,
 } = require('../constants/p2p.constants');
 
-let reconnectTimeout = null;
-
 exports.reconnect = async () => {
+    if (p2pSockets.getSize() >= MIN_PEERS_COUNT) return;
+
+    logger.debug(`Reconnecting to peers. current size: ${p2pSockets.getSize()}`);
     const peers = await peerService.getPeers(AVERAGE_PEERS_COUNT);
     this.connectToPears(peers);
 };
+
+setInterval(this.reconnect, DEFAULT_PEERS_RECONNECTION_TIMEOUT);
 
 /**
  * @param {string} address
@@ -55,14 +58,10 @@ exports.connectToPear = (address, gossip) => {
         logger.warn(`Connection problems with peer ${peer}`);
         sockets.delete(peer);
     });
-    socket.on('close', (code) => {
+    socket.on('close', async (code) => {
         clearInterval(pingInterval);
         if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(peer);
-        p2pHandlers.socketDisconnected(socket, peer);
-        if (p2pSockets.getSize() < MIN_PEERS_COUNT) {
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(this.reconnect, DEFAULT_PEERS_RECONNECTION_TIMEOUT);
-        }
+        await p2pHandlers.socketDisconnected(socket, peer);
     });
 };
 
