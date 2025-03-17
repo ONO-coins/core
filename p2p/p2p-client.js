@@ -41,16 +41,22 @@ exports.connectToPear = (address, gossip) => {
     });
     sockets.set(peer, socket);
 
+    let pingInterval;
+
     socket.on('open', () => {
         // @ts-ignore
         p2pHandlers.socketConnected(socket, peer, false);
         if (gossip) p2pActions.broadcastPeer(address);
+        pingInterval = setInterval(() => {
+            socket.ping();
+        }, 30000);
     });
     socket.on('error', (error) => {
         logger.warn(`Connection problems with peer ${peer}`);
         sockets.delete(peer);
     });
     socket.on('close', (code) => {
+        clearInterval(pingInterval);
         if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(peer);
         p2pHandlers.socketDisconnected(socket, peer);
         if (sockets.size < MIN_PEERS_COUNT) {
