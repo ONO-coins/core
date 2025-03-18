@@ -1,5 +1,4 @@
 const { MODEL_NAME, PEER_TYPES } = require('../../../constants/models/peer.constants');
-const { Op } = require('sequelize');
 const database = require('..');
 const peer = database.getModel(MODEL_NAME);
 const postgresHelperLib = require('../../../lib/postgres-helper.lib');
@@ -77,7 +76,7 @@ exports.update = async (params, data, databaseTransaction) => {
  */
 exports.getServers = async (number) => {
     const records = await peer.findAll({
-        where: { nodeType: PEER_TYPES.SERVER, connected: { [Op.not]: false } },
+        where: { nodeType: PEER_TYPES.SERVER, connected: false },
         limit: number,
         order: [['lastSeen', 'ASC']],
     });
