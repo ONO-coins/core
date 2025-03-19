@@ -141,7 +141,11 @@ exports.init = async () => {
 exports.checkNewBlockId = async (newBlock) => {
     const lastBlock = await blockDao.getLastBlock();
     if (lastBlock.id === newBlock.id) return BLOCK_ID_ACTIONS.NEED_REPLACE;
-    if (lastBlock.id > newBlock.id) throw new Error(`Block already exists.`);
+    if (lastBlock.id > newBlock.id) {
+        if (newBlock.target < lastBlock.target)
+            throw new SyncError(`Block is more difficult. Try to sync`);
+        throw new Error(`Block already exists.`);
+    }
     const lag = newBlock.id - lastBlock.id;
     if (lag > 1) throw new SyncError(`Block is too far away. Need sync.`);
     return BLOCK_ID_ACTIONS.NO_ACTION_NEED;
