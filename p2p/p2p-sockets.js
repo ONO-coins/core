@@ -16,6 +16,29 @@ exports.getSize = () => {
 };
 
 /**
+ * @returns {Array<string>}
+ */
+exports.getKeys = () => {
+    return Array.from(sockets.keys());
+};
+
+/**
+ * @returns {Array<string>}
+ */
+exports.getServerKeys = () => {
+    const keys = this.getKeys();
+    return keys.filter((key) => key.startsWith('ws'));
+};
+
+/**
+ * @returns {number}
+ */
+exports.getServerSize = () => {
+    const keys = this.getServerKeys();
+    return keys.length;
+};
+
+/**
  *
  * @param {string} id
  * @returns {boolean}

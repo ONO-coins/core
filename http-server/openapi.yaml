@@ -182,6 +182,17 @@ paths:
             responses:
                 '200':
                     description: OK
+    /secure/stats:
+        get:
+            parameters:
+                - in: header
+                  name: authorization
+                  schema:
+                      type: string
+                  required: true
+            responses:
+                '200':
+                    description: OK
 components:
     schemas:
         Balance:
