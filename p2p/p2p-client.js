@@ -8,6 +8,7 @@ const state = require('../state');
 const { logger } = require('../managers/log.manager');
 const {
     AVERAGE_PEERS_COUNT,
+    MIN_PEERS_COUNT,
     NODE_ID_HEADER,
     DEFAULT_PEERS_RECONNECTION_TIMEOUT,
     SELF_CONNECTION_ERROR_CODE,
@@ -15,7 +16,9 @@ const {
 
 exports.reconnect = async () => {
     const defaultPeers = JSON.parse(process.env.DEFAULT_PEERS);
-    if (p2pSockets.getServerSize() >= defaultPeers.length) return;
+    const connectedServersCount = p2pSockets.getServerSize();
+    if (connectedServersCount >= defaultPeers.length && connectedServersCount >= MIN_PEERS_COUNT)
+        return;
 
     logger.debug(`Reconnecting to peers. current size: ${p2pSockets.getSize()}`);
     const peers = await peerService.getPeers(AVERAGE_PEERS_COUNT);

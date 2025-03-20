@@ -46,7 +46,6 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
             // const needSync = await blockService.checkInvalidBlockStats(invalidBlockStats);
             // if (!needSync) return;
 
-            state.startSync();
             const immutableBlockId = await blockService.getImmutableBlockId();
             state.setImmutableBlockId(
                 immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT,
@@ -73,8 +72,9 @@ exports.syncRequest = async (data, socket) => {
  */
 exports.onChain = async (chain, socket) => {
     if (!chain.length) return;
-    if (!state.isSyncing() || state.chainProcessing()) return;
+    if (state.chainProcessing()) return;
     state.startChainProcessing();
+    state.startSync();
 
     try {
         const chainValidationResult = await blockTransactionService.validateChain(chain);
