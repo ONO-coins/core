@@ -14,7 +14,7 @@ class State {
     #syncing;
     #synchronized;
     #immutableBlockId;
-    #blockStats;
+    #externalBlockDate;
     #chainProcessing;
     #id;
     #processingBlock;
@@ -25,69 +25,15 @@ class State {
         this.#synchronized = false;
         this.#chainProcessing = false;
         this.#id = uuidv4();
-        this.#initBlockStats();
+        this.#externalBlockDate = new Date();
     }
 
-    #initBlockStats() {
-        this.#blockStats = {
-            invalidBlocksRov: 0,
-            avarageInvalidDelay: 0,
-            avarageInvalidTarget: 0,
-            lastBlockTime: new Date(),
-            highest: 0,
-            timeout: this.#blockStatsTimeout(),
-        };
+    validBlock() {
+        this.#externalBlockDate = new Date();
     }
 
-    #blockStatsTimeout() {
-        return setTimeout(() => this.#initBlockStats(), 60000);
-    }
-
-    /**
-     * @param {number} blockTarget
-     * @param {number} blockId
-     */
-    invalidBlock(blockTarget, blockId) {
-        if (this.#blockStats.highest) {
-            if (blockId - this.#blockStats.highest !== 1) return;
-            clearTimeout(this.#blockStats.timeout);
-            this.#blockStats.highest++;
-            this.#blockStats.timeout = this.#blockStatsTimeout();
-        } else {
-            this.#blockStats.highest = blockId;
-        }
-
-        this.#blockStats.invalidBlocksRov += 1;
-        const delay = new Date().getTime() - this.#blockStats.lastBlockTime.getTime();
-
-        this.#blockStats.avarageInvalidDelay =
-            (this.#blockStats.avarageInvalidDelay *
-                (BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD - 1) +
-                delay) /
-            BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD;
-
-        this.#blockStats.avarageInvalidTarget =
-            (this.#blockStats.avarageInvalidTarget *
-                (BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD - 1) +
-                blockTarget) /
-            BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD;
-
-        this.#blockStats.lastBlockTime = new Date();
-    }
-
-    /**
-     * @param {number} id
-     */
-    validBlock(id) {
-        this.#blockStats.invalidBlocksRov = 0;
-        this.#immutableBlockId = Math.max(id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT, 0);
-    }
-
-    /**
-     * @returns {BlockStats}
-     */
-    invalidBlockStats() {
-        return this.#blockStats;
+    lastValidBlockDate() {
+        return this.#externalBlockDate;
     }
 
     isForging() {

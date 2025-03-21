@@ -8,6 +8,7 @@ const state = require('../state');
 const { logger } = require('../managers/log.manager');
 const {
     AVERAGE_PEERS_COUNT,
+    BLOCK_LAG_FOR_RECONNECT,
     NODE_ID_HEADER,
     DEFAULT_PEERS_RECONNECTION_TIMEOUT,
     SELF_CONNECTION_ERROR_CODE,
@@ -26,6 +27,11 @@ exports.needReconnect = () => {
         wsAddresses.includes(server),
     );
     if (isConnectedToDefaultServer) return false;
+
+    const lastValidBlockDate = state.lastValidBlockDate();
+    const now = new Date();
+    const dif = now.getTime() - lastValidBlockDate.getTime();
+    if (dif < BLOCK_LAG_FOR_RECONNECT) return false;
 
     return true;
 };

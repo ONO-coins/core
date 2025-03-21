@@ -185,33 +185,3 @@ exports.checkBlockPreviousHash = async (block) => {
 exports.checkBlockSignature = (block) => {
     return cryptoUtilsLib.verifySignature(block.hash, block.signature, block.publicKey);
 };
-
-/**
- * @param {BlockStats} stats
- * @returns {Promise<boolean>}
- */
-exports.checkInvalidBlockStats = async (stats) => {
-    if (stats.invalidBlocksRov < BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD) {
-        return false;
-    }
-
-    if (
-        stats.avarageInvalidDelay / 1000 <
-        BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_DELAY_TRESHOLD_MULTIPLIER *
-            BLOCKCHAIN_SETTINGS.BLOCK_AVERAGE_TIME_SECONDS
-    ) {
-        return false;
-    }
-
-    const averageTarget = await blockDao.getAverageTarget(
-        BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_COUNT_TRESHOLD,
-    );
-    if (
-        stats.avarageInvalidTarget >
-        BLOCKCHAIN_SETTINGS.INVALID_BLOCKS_TARGET_TRESHOLD_MULTIPLIER * averageTarget
-    ) {
-        return false;
-    }
-
-    return true;
-};
