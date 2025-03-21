@@ -8,13 +8,15 @@ const state = require('../state');
 const { logger } = require('../managers/log.manager');
 const {
     AVERAGE_PEERS_COUNT,
-    MIN_PEERS_COUNT,
     NODE_ID_HEADER,
     DEFAULT_PEERS_RECONNECTION_TIMEOUT,
     SELF_CONNECTION_ERROR_CODE,
 } = require('../constants/p2p.constants');
 
-exports.checkDefaultServerConnection = () => {
+/**
+ * @returns {boolean}
+ */
+exports.needReconnect = () => {
     const defaultPeers = JSON.parse(process.env.DEFAULT_PEERS);
     if (!defaultPeers.length) return false;
 
@@ -23,18 +25,20 @@ exports.checkDefaultServerConnection = () => {
     const isConnectedToDefaultServer = connectedServers.some((server) =>
         wsAddresses.includes(server),
     );
-    return isConnectedToDefaultServer;
+    if (isConnectedToDefaultServer) return false;
+
+    return true;
 };
 
 exports.reconnect = async () => {
-    const isConnectedToDefaultServer = this.checkDefaultServerConnection();
-    if (isConnectedToDefaultServer) return;
-
-    const connectedServersCount = p2pSockets.getServerSize();
-    if (connectedServersCount >= MIN_PEERS_COUNT) return;
+    const needReconnect = this.needReconnect();
+    if (!needReconnect) return;
 
     logger.debug(`Reconnecting to peers. current size: ${p2pSockets.getSize()}`);
-    const peers = await peerService.getPeers(AVERAGE_PEERS_COUNT);
+    const databasePeers = await peerService.getPeers(AVERAGE_PEERS_COUNT);
+    const filteredDatabasePeers = utilsLib.filterLocalUrls(databasePeers);
+    const defaultPeers = JSON.parse(process.env.DEFAULT_PEERS);
+    const peers = [...new Set([...filteredDatabasePeers, ...defaultPeers])];
     this.connectToPears(peers);
 };
 
