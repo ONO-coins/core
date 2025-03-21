@@ -14,11 +14,24 @@ const {
     SELF_CONNECTION_ERROR_CODE,
 } = require('../constants/p2p.constants');
 
-exports.reconnect = async () => {
+exports.checkDefaultServerConnection = () => {
     const defaultPeers = JSON.parse(process.env.DEFAULT_PEERS);
+    if (!defaultPeers.length) return false;
+
+    const wsAddresses = defaultPeers.map((address) => utilsLib.toWsAddress(address));
+    const connectedServers = p2pSockets.getServerKeys();
+    const isConnectedToDefaultServer = connectedServers.some((server) =>
+        wsAddresses.includes(server),
+    );
+    return isConnectedToDefaultServer;
+};
+
+exports.reconnect = async () => {
+    const isConnectedToDefaultServer = this.checkDefaultServerConnection();
+    if (isConnectedToDefaultServer) return;
+
     const connectedServersCount = p2pSockets.getServerSize();
-    if (connectedServersCount >= defaultPeers.length && connectedServersCount >= MIN_PEERS_COUNT)
-        return;
+    if (connectedServersCount >= MIN_PEERS_COUNT) return;
 
     logger.debug(`Reconnecting to peers. current size: ${p2pSockets.getSize()}`);
     const peers = await peerService.getPeers(AVERAGE_PEERS_COUNT);
