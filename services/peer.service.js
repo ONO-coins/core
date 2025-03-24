@@ -113,6 +113,14 @@ exports.messageEvent = async (key, messageType) => {
         return false;
     }
 
+    const minAllowedFrequency =
+        messageType === P2P_MESSAGE_TYPES.SYNC_REQUEST ? FREQUENCY.SYNCING_MIN : FREQUENCY.MIN;
+    const isSpam = peer.messageFrequency < minAllowedFrequency;
+    if (isSpam) {
+        await databaseTransaction.commit();
+        return isSpam;
+    }
+
     const interval = new Date().getTime() - peer.lastSeen.getTime();
     const newFrequency =
         (peer.messageFrequency * (FREQUENCY.MESSAGES_COUNT - 1) + interval) /
@@ -124,9 +132,7 @@ exports.messageEvent = async (key, messageType) => {
     );
     await databaseTransaction.commit();
 
-    const minAllowedFrequency =
-        messageType === P2P_MESSAGE_TYPES.SYNC_REQUEST ? FREQUENCY.SYNCING_MIN : FREQUENCY.MIN;
-    return peer.messageFrequency < minAllowedFrequency;
+    return isSpam;
 };
 
 /**
