@@ -40,6 +40,7 @@ const block = {
 };
 
 module.exports = {
+    [P2P_MESSAGE_TYPES.PING]: {},
     [P2P_MESSAGE_TYPES.PEERS_REQUEST]: {
         type: 'object',
         properties: {

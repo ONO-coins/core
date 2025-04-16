@@ -83,3 +83,11 @@ exports.sendChain = (socket, chain) => {
 exports.sendPeers = (socket, peers) => {
     socket.send(JSON.stringify({ type: P2P_MESSAGE_TYPES.PEERS_RESPONSE, data: peers }));
 };
+
+/**
+ * @param {WebSocket} socket
+ * @returns {void}
+ */
+exports.sendPong = (socket) => {
+    socket.send(JSON.stringify({ type: P2P_MESSAGE_TYPES.PONG }));
+};

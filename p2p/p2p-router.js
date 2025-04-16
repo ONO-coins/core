@@ -2,6 +2,7 @@ const { P2P_MESSAGE_TYPES } = require('../constants/p2p.constants');
 const transactionController = require('./controllers/transaction.controller');
 const blockController = require('./controllers/block.controller');
 const peersController = require('./controllers/peers.controller');
+const pingController = require('./controllers/ping.controller');
 const peerService = require('../services/peer.service');
 const p2pValidator = require('./p2p-validator');
 const { logger } = require('../managers/log.manager');
@@ -22,8 +23,8 @@ exports.messageHandler = (socket, key) => {
             return;
         }
 
-        const spaming = await peerService.messageEvent(key, parsedMessage.type);
-        if (spaming) {
+        const spamming = await peerService.messageEvent(key, parsedMessage.type);
+        if (spamming) {
             logger.debug(`socket ${key} ignored because of spam`);
             socket.close();
             return;
@@ -59,6 +60,9 @@ exports.messageHandler = (socket, key) => {
                 break;
             case P2P_MESSAGE_TYPES.PEER_GOSSIP:
                 await peersController.onGossip(parsedMessage.data, key);
+                break;
+            case P2P_MESSAGE_TYPES.PING:
+                pingController.onPing(socket);
                 break;
             default:
                 logger.warn('Invalid message type');

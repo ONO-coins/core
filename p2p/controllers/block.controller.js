@@ -20,9 +20,9 @@ const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
 /**
  * @param {BlockWithTransactions} blockData
  * @param {WebSocket} socket
- * @param {string} [sernderKey]
+ * @param {string} [senderKey]
  */
-exports.onBlock = async (blockData, socket, sernderKey) => {
+exports.onBlock = async (blockData, socket, senderKey) => {
     try {
         if (state.isSyncing()) return;
         const success = await blockGeneralController.onBlock(blockData);
@@ -31,12 +31,12 @@ exports.onBlock = async (blockData, socket, sernderKey) => {
         state.validBlock();
         state.setImmutableBlockId(blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
         logger.info(`New valid block ${blockData.id} received`);
-        p2pActions.broadcastBlock(blockData, [sernderKey]);
+        p2pActions.broadcastBlock(blockData, [senderKey]);
     } catch (err) {
         logger.warn(`Block ${blockData?.id} error: ${err.message}`);
 
         if (err instanceof UniqueConstraintError) {
-            await this.onBlock(blockData, socket, sernderKey);
+            await this.onBlock(blockData, socket, senderKey);
             return;
         }
 
