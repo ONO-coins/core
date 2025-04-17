@@ -151,6 +151,18 @@ exports.checkNewBlockId = async (newBlock) => {
 };
 
 /**
+ * @param {Block} newBlock
+ * @returns {boolean}
+ */
+exports.checkNewBlockTimings = (newBlock) => {
+    const currentTimestamp = Math.round(Date.now() / 1000);
+    if (currentTimestamp < newBlock.timestamp - BLOCKCHAIN_SETTINGS.MAX_TIMESTAMP_DIFF)
+        return false;
+
+    return true;
+};
+
+/**
  * @returns {Promise<number>}
  */
 exports.getImmutableBlockId = async () => {
@@ -162,6 +174,16 @@ exports.getImmutableBlockId = async () => {
 exports.setImmutableBlockId = async (id) => {
     const immutableBlockId = Math.max(0, id);
     state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);
+};
+
+/**
+ * @param {BlockWithTransactions} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockTarget = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    const target = this.createBlockTarget(previousBlock, block.timestamp);
+    return target === block.target;
 };
 
 /**

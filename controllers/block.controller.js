@@ -25,7 +25,11 @@ const sequelize = database.getSequelize();
 exports.onBlock = async (blockData) => {
     const processingBlockId = state.getState(state.KEYS.PROCESSING_BLOCK_ID);
     if (blockData.id === processingBlockId) return false;
+
     state.setState(state.KEYS.PROCESSING_BLOCK_ID, blockData.id);
+
+    const validTimers = blockService.checkNewBlockTimings(blockData);
+    if (!validTimers) throw new Error('Invalid block timings');
 
     // check if block exists or we are too far away
     const existingCheck = await blockService.checkNewBlockId(blockData);
@@ -75,7 +79,7 @@ exports.onBlock = async (blockData) => {
         // add transaction to new block
         await blockTransactionDao.bulkCreate(transactionHashes, blockData.id, databaseTransaction);
 
-        // remove block transactions from transactionpool
+        // remove block transactions from transaction pool
         await transactionPoolDao.dropTransactions(transactionHashes, databaseTransaction);
 
         await databaseTransaction.commit();

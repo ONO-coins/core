@@ -32,6 +32,9 @@ exports.validateBlock = async (block) => {
     if (!previousHashValid)
         return { valid: false, error: `Block ${block.id} has invalid previous block hash` };
 
+    const validTarget = await blockService.checkBlockTarget(block);
+    if (!validTarget) return { valid: false, error: `Block ${block.id} has invalid target` };
+
     const transactionsCheck = await transactionService.validateTransactions(transactions);
     if (!transactionsCheck.valid) return transactionsCheck;
 

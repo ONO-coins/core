@@ -20,7 +20,6 @@ const publicKey = wallet.getDefaultAddress().publicKey.toString('hex');
  * @typedef {import('databases/postgres/models/block.model').Block} Block
  * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  * @typedef {import('hdkey')} HDNode
- * @typedef {import('state').BlockStats} BlockStats
  */
 
 /**

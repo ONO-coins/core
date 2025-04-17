@@ -52,6 +52,8 @@ exports.onBlock = async (blockData, socket, senderKey) => {
             blockService.setImmutableBlockId(newImmutableBlockId);
             p2pActions.syncRequest(socket, immutableBlockId);
         }
+
+        state.setState(state.KEYS.PROCESSING_BLOCK_ID, 0);
     }
 };
 
@@ -103,6 +105,7 @@ exports.onChain = async (chain, socket) => {
         p2pActions.broadcastSyncRequest(lastBlock.id);
     } catch (error) {
         logger.warn(`Chain error: ${error}`);
+        state.setState(state.KEYS.PROCESSING_BLOCK_ID, 0);
         state.setState(state.KEYS.SYNCING, false);
     }
 };
