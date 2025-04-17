@@ -1,6 +1,6 @@
 const wallet = require('../../wallet');
 const transactionDao = require('../../databases/postgres/dao/transaction.dao');
-const transactionService = require('../../services/transaction.servise');
+const transactionService = require('../../services/transaction.service');
 const transactionGeneralController = require('../../controllers/transaction.controller');
 const { TOTAL_COUNT_HEADER } = require('../../constants/headers.constants.js');
 const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');

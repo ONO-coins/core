@@ -2,6 +2,9 @@ async function init() {
     const loggerManager = require('./managers/log.manager');
     loggerManager.setInitialLevel();
 
+    const state = require('./state');
+    state.init();
+
     const database = require('./databases/postgres');
     await database.init();
 
@@ -17,7 +20,7 @@ async function init() {
     const wallet = require('./wallet');
     await wallet.init();
 
-    const transactionPoolService = require('./services/transaction-pool.servise');
+    const transactionPoolService = require('./services/transaction-pool.service');
     await transactionPoolService.init();
 
     const blockService = require('./services/block.service');

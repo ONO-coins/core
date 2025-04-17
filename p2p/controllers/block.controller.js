@@ -3,7 +3,7 @@ const balanceDao = require('../../databases/postgres/dao/balance.dao');
 const blockTransactionDao = require('../../databases/postgres/dao/block-transaction.dao');
 const blockGeneralController = require('../../controllers/block.controller');
 const blockService = require('../../services/block.service');
-const blockTransactionService = require('../../services/block-transaction.servise');
+const blockTransactionService = require('../../services/block-transaction.service');
 const p2pActions = require('../p2p-actions');
 const state = require('../../state');
 const { logger } = require('../../managers/log.manager');
@@ -24,12 +24,17 @@ const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
  */
 exports.onBlock = async (blockData, socket, senderKey) => {
     try {
-        if (state.isSyncing()) return;
+        const isSyncing = state.getState(state.KEYS.SYNCING);
+        if (isSyncing) return;
+
         const success = await blockGeneralController.onBlock(blockData);
         if (!success) return;
 
-        state.validBlock();
-        state.setImmutableBlockId(blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+        state.setState(state.KEYS.LAST_VALID_EXTERNAL_BLOCK_DATE, new Date());
+
+        const immutableBlockId = blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT;
+        blockService.setImmutableBlockId(immutableBlockId);
+
         logger.info(`New valid block ${blockData.id} received`);
         p2pActions.broadcastBlock(blockData, [senderKey]);
     } catch (err) {
@@ -42,9 +47,9 @@ exports.onBlock = async (blockData, socket, senderKey) => {
 
         if (err.errorType === ERROR_TYPES.SYNC_ERROR) {
             const immutableBlockId = await blockService.getImmutableBlockId();
-            state.setImmutableBlockId(
-                immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT,
-            );
+            const newImmutableBlockId =
+                immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT;
+            blockService.setImmutableBlockId(newImmutableBlockId);
             p2pActions.syncRequest(socket, immutableBlockId);
         }
     }
@@ -67,9 +72,11 @@ exports.syncRequest = async (data, socket) => {
  */
 exports.onChain = async (chain, socket) => {
     if (!chain.length) return;
-    if (state.chainProcessing()) return;
-    state.startChainProcessing();
-    state.startSync();
+
+    const isSyncing = state.getState(state.KEYS.SYNCING);
+    if (isSyncing) return;
+
+    state.setState(state.KEYS.SYNCING, true);
 
     try {
         const chainValidationResult = await blockTransactionService.validateChain(chain);
@@ -85,21 +92,17 @@ exports.onChain = async (chain, socket) => {
         const lastBlock = chain[chain.length - 1];
 
         if (chain.length < BLOCKCHAIN_SETTINGS.SYNCHRONIZATION_BATCH) {
-            state.stopSync();
-            state.setSynchronized();
-            state.stopChainProcessing();
-            logger.info(`Chain syncronized!`);
-            state.startForging();
+            state.setState(state.KEYS.SYNCING, false);
+            logger.info(`Chain synchronized!`);
             return;
         }
 
-        logger.info(`Chain syncronizing... Last block id: ${lastBlock.id}`);
-        state.stopChainProcessing();
+        state.setState(state.KEYS.SYNCING, false);
+
+        logger.info(`Chain synchronizing... Last block id: ${lastBlock.id}`);
         p2pActions.broadcastSyncRequest(lastBlock.id);
     } catch (error) {
         logger.warn(`Chain error: ${error}`);
-        state.stopChainProcessing();
-        state.stopSync();
-        state.startForging();
+        state.setState(state.KEYS.SYNCING, false);
     }
 };

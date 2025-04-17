@@ -1,6 +1,6 @@
 const blockService = require('../services/block.service');
 const forgerService = require('../services/forger.service');
-const blockTransactionService = require('../services/block-transaction.servise');
+const blockTransactionService = require('../services/block-transaction.service');
 const balanceService = require('../services/balance.service');
 const database = require('../databases/postgres');
 const transactionDao = require('../databases/postgres/dao/transaction.dao');
@@ -15,7 +15,7 @@ const sequelize = database.getSequelize();
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
- * @typedef {import('services/block-transaction.servise').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  */
 
 /**
@@ -23,8 +23,9 @@ const sequelize = database.getSequelize();
  * @returns {Promise<boolean>}
  */
 exports.onBlock = async (blockData) => {
-    if (blockData.id === state.getProcessindBlock()) return false;
-    state.setProcessindBlock(blockData.id);
+    const processingBlockId = state.getState(state.KEYS.PROCESSING_BLOCK_ID);
+    if (blockData.id === processingBlockId) return false;
+    state.setState(state.KEYS.PROCESSING_BLOCK_ID, blockData.id);
 
     // check if block exists or we are too far away
     const existingCheck = await blockService.checkNewBlockId(blockData);
@@ -43,8 +44,8 @@ exports.onBlock = async (blockData) => {
     if (!consensusValid) throw new Error('Block with invalid consensus');
 
     // validate block
-    const blockValidationResilt = await blockTransactionService.validateBlock(blockData);
-    if (!blockValidationResilt.valid) throw new Error(blockValidationResilt.error);
+    const blockValidationResult = await blockTransactionService.validateBlock(blockData);
+    if (!blockValidationResult.valid) throw new Error(blockValidationResult.error);
 
     const databaseTransaction = await sequelize.transaction();
     const { transactions, ...blockWithoutTransactions } = blockData;
@@ -80,7 +81,7 @@ exports.onBlock = async (blockData) => {
         await databaseTransaction.commit();
         return true;
     } catch (err) {
-        state.setProcessindBlock(0);
+        state.setState(state.KEYS.PROCESSING_BLOCK_ID, 0);
         await databaseTransaction.rollback();
         throw err;
     }

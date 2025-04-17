@@ -2,7 +2,7 @@ const transactionDao = require('../../databases/postgres/dao/transaction.dao');
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
- * @typedef {import('services/block-transaction.servise').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  * @typedef {import('databases/postgres/models/balance.model').Balance} Balance
  * @typedef {import('sequelize').Transaction} DatabaseTransaction
  */

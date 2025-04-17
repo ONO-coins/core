@@ -1,4 +1,4 @@
-const transactionService = require('../services/transaction.servise');
+const transactionService = require('../services/transaction.service');
 const transactionPoolDao = require('../databases/postgres/dao/transaction-pool.dao');
 const p2pActions = require('../p2p/p2p-actions');
 

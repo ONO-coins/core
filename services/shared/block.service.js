@@ -37,5 +37,7 @@ exports.compareHit = async (block) => {
 exports.removeChainSince = async (blockId) => {
     await blockTransactionDao.removeSinceBlockId(blockId);
     await balanceDao.flushBalancesFromBlock(blockId);
-    state.setImmutableBlockId(blockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+
+    const immutableBlockId = Math.max(0, blockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+    state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);
 };

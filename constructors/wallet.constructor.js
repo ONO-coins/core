@@ -57,7 +57,7 @@ class Wallet {
         return address;
     }
 
-    getDefaultAdress() {
+    getDefaultAddress() {
         return this.generateAddress(0);
     }
 }

@@ -18,9 +18,8 @@ const {
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
  * @typedef {import('databases/postgres/models/block.model').Block} Block
- * @typedef {import('services/block-transaction.servise').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  * @typedef {import('hdkey')} HDNode
- * @typedef {import('state').BlockStats} BlockStats
  */
 
 /**
@@ -104,7 +103,7 @@ exports.init = async () => {
     const lastBlock = await blockDao.getLastBlock();
     if (lastBlock) {
         const immutableBlockId = await this.getImmutableBlockId();
-        state.setImmutableBlockId(immutableBlockId);
+        this.setImmutableBlockId(immutableBlockId);
         return;
     }
 
@@ -131,7 +130,7 @@ exports.init = async () => {
         }
     }
 
-    state.setImmutableBlockId(INITIAL_BLOCK.id);
+    this.setImmutableBlockId(INITIAL_BLOCK.id);
 };
 
 /**
@@ -158,6 +157,11 @@ exports.getImmutableBlockId = async () => {
     const publicKey = wallet.getDefaultPublicKey();
     const lastBlock = await blockDao.getLastExternalBlock(publicKey);
     return Math.max(0, lastBlock.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+};
+
+exports.setImmutableBlockId = async (id) => {
+    const immutableBlockId = Math.max(0, id);
+    state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);
 };
 
 /**
