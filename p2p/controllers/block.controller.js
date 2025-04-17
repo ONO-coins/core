@@ -50,6 +50,7 @@ exports.onBlock = async (blockData, socket, senderKey) => {
             const newImmutableBlockId =
                 immutableBlockId - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT;
             blockService.setImmutableBlockId(newImmutableBlockId);
+            state.setState(state.KEYS.SYNCHRONIZED, false);
             p2pActions.syncRequest(socket, immutableBlockId);
         }
 
@@ -65,6 +66,7 @@ exports.onBlock = async (blockData, socket, senderKey) => {
 exports.syncRequest = async (data, socket) => {
     logger.debug(`Sync request from ${data.lastBlockId}`);
     const chain = await blockDao.getBlocksFrom(data.lastBlockId);
+    if (!chain.length) return;
     p2pActions.sendChain(socket, chain);
 };
 
@@ -73,12 +75,18 @@ exports.syncRequest = async (data, socket) => {
  * @param {WebSocket} socket
  */
 exports.onChain = async (chain, socket) => {
-    if (!chain.length) return;
+    if (!chain.length) throw new Error("Can't process empty chain");
+
+    const synchronized = state.getState(state.KEYS.SYNCHRONIZED);
+    if (synchronized) return;
 
     const isSyncing = state.getState(state.KEYS.SYNCING);
-    if (isSyncing) return;
+    if (!isSyncing) state.setState(state.KEYS.SYNCING, true);
 
-    state.setState(state.KEYS.SYNCING, true);
+    const chainProcessing = state.getState(state.KEYS.CHAIN_PROCESSING);
+    if (chainProcessing) return;
+
+    state.setState(state.KEYS.CHAIN_PROCESSING, true);
 
     try {
         const chainValidationResult = await blockTransactionService.validateChain(chain);
@@ -95,17 +103,20 @@ exports.onChain = async (chain, socket) => {
 
         if (chain.length < BLOCKCHAIN_SETTINGS.SYNCHRONIZATION_BATCH) {
             state.setState(state.KEYS.SYNCING, false);
+            state.setState(state.KEYS.CHAIN_PROCESSING, false);
+            state.setState(state.KEYS.SYNCHRONIZED, true);
             logger.info(`Chain synchronized!`);
             return;
         }
 
-        state.setState(state.KEYS.SYNCING, false);
+        state.setState(state.KEYS.CHAIN_PROCESSING, false);
 
         logger.info(`Chain synchronizing... Last block id: ${lastBlock.id}`);
         p2pActions.broadcastSyncRequest(lastBlock.id);
     } catch (error) {
         logger.warn(`Chain error: ${error}`);
         state.setState(state.KEYS.PROCESSING_BLOCK_ID, 0);
+        state.setState(state.KEYS.CHAIN_PROCESSING, false);
         state.setState(state.KEYS.SYNCING, false);
     }
 };
