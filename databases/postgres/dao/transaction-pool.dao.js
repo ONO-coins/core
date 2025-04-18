@@ -74,7 +74,7 @@ exports.getTransactions = async (count, databaseTransaction) => {
 exports.dropTransactions = async (transactionHashes, databaseTransaction) => {
     await transactionPool.destroy({
         where: { transactionHash: { [Op.in]: transactionHashes } },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
 };
 

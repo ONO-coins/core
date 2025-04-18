@@ -7,11 +7,11 @@ const { logger } = require('../../managers/log.manager');
 
 /**
  * @param {Transaction} transactionData
- * @param {string} [sernderKey]
+ * @param {string} [senderKey]
  */
-exports.onTransaction = async (transactionData, sernderKey) => {
+exports.onTransaction = async (transactionData, senderKey) => {
     try {
-        await transactionGeneralController.newTransaction(transactionData, sernderKey);
+        await transactionGeneralController.newTransaction(transactionData, senderKey);
     } catch (err) {
         logger.warn(`Transaction hash: ${transactionData?.hash}.\n ${err.message}`);
     }

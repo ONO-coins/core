@@ -1,3 +1,4 @@
+const Big = require('big.js');
 const state = require('../state');
 const blockDao = require('../databases/postgres/dao/block.dao');
 const transactionDao = require('../databases/postgres/dao/transaction.dao');
@@ -120,7 +121,7 @@ exports.init = async () => {
         const transaction = initialTransaction[i];
         await balanceDao.create(transaction.to, transaction.amount, 0, INITIAL_BLOCK.id);
         if (transaction.to === BLOCKCHAIN_SETTINGS.BURN_ADDRESS) {
-            const amount = -transaction.amount - transaction.fee;
+            const amount = new Big(0).minus(transaction.amount).minus(transaction.fee).toNumber();
             await balanceDao.changeBalance(
                 transaction.from,
                 amount,
@@ -171,6 +172,9 @@ exports.getImmutableBlockId = async () => {
     return Math.max(0, lastBlock.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
 };
 
+/**
+ * @param {number} id
+ */
 exports.setImmutableBlockId = async (id) => {
     const immutableBlockId = Math.max(0, id);
     state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);

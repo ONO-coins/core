@@ -26,7 +26,7 @@ exports.bulkCreate = async (transactionHashes, blockId, databaseTransaction) => 
     }));
     const blockTransactions = await blockTransaction.bulkCreate(
         blockTransactionsData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return blockTransactions;
 };
@@ -40,7 +40,7 @@ exports.bulkCreate = async (transactionHashes, blockId, databaseTransaction) => 
 exports.getOneInOtherBlock = async (transactionHashes, blockId, databaseTransaction) => {
     const exists = await blockTransaction.findOne({
         where: { transactionHash: { [Op.in]: transactionHashes }, blockId: { [Op.lt]: blockId } },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return exists;
 };
@@ -117,6 +117,6 @@ exports.removeSinceBlockId = async (blockId, databaseTransaction) => {
     const results = await sequelize.query(query, {
         type: Sequelize.QueryTypes.SELECT,
         replacements: { blockId },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
 };

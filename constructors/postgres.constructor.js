@@ -32,7 +32,7 @@ class PgDatabase {
         this.#force = force;
         if (this.#force)
             logger.warn(
-                'Your database will be force syced! Change DATABASE_FORCE_SYNC=false to avoid it.',
+                'Your database will be force synced! Change DATABASE_FORCE_SYNC=false to avoid it.',
             );
     }
 

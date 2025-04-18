@@ -102,7 +102,7 @@ exports.getByHash = async (hash) => {
 exports.create = async (blockData, databaseTransaction) => {
     const newBlock = await block.create(
         blockData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return newBlock;
 };

@@ -26,7 +26,7 @@ exports.changeOrCreateBalance = async (address, amount, burned, blockId, databas
     const exists = await balanceDao.getBalance(address, databaseTransaction);
     if (exists) {
         if (exists.affectedBlockId === blockId) {
-            const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(
+            const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
                 address,
                 databaseTransaction,
             );
@@ -48,7 +48,7 @@ exports.changeOrCreateBalance = async (address, amount, burned, blockId, databas
             return record;
         }
     } else {
-        const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(
+        const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
             address,
             databaseTransaction,
         );

@@ -64,11 +64,13 @@ exports.validateFee = (transaction) => {
  */
 exports.validateTransactionBalance = async (transaction) => {
     const balanceRecord = await balanceDao.getBalance(transaction.from);
-    const amount = transaction.amount + transaction.fee;
+    const amount = new Big(transaction.amount).plus(transaction.fee).toNumber();
 
     if (balanceRecord && balanceRecord.balance > amount) return true;
 
-    const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(transaction.from);
+    const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
+        transaction.from,
+    );
     const lastBlockId = await blockDao.getLastBlock();
 
     if (balanceRecord) {
@@ -145,8 +147,8 @@ exports.validateTransactions = async (transactions) => {
     if (!hasDuplicates.valid) return hasDuplicates;
 
     for (let i = 0; i < transactions.length; i++) {
-        const tranasactionCheck = await this.validateTransaction(transactions[i]);
-        if (!tranasactionCheck.valid) return tranasactionCheck;
+        const transactionCheck = await this.validateTransaction(transactions[i]);
+        if (!transactionCheck.valid) return transactionCheck;
     }
     return { valid: true };
 };

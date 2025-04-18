@@ -12,7 +12,7 @@ const transactionDao = require('../../databases/postgres/dao/transaction.dao');
  * @param {DatabaseTransaction} [databaseTransaction]
  * @returns {Promise<{balance: number, burnedBalance: number}>}
  */
-exports.calculateBalace = async (address, databaseTransaction) => {
+exports.calculateBalance = async (address, databaseTransaction) => {
     const balance = await transactionDao.calculateBalance(address, databaseTransaction);
     const burnedBalance = await transactionDao.calculateBurnedBalance(address, databaseTransaction);
     return { balance, burnedBalance };

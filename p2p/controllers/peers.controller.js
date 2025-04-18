@@ -28,15 +28,15 @@ exports.onPeers = (peers) => {
 
 /**
  * @param {{peer: string}} data
- * @param {string} [sernderKey]
+ * @param {string} [senderKey]
  * @returns {Promise<void>}
  */
-exports.onGossip = async (data, sernderKey) => {
+exports.onGossip = async (data, senderKey) => {
     const existed = await peerService.checkAddress(data.peer);
     if (existed) return;
 
     p2pClient.connectToPear(data.peer, true);
-    p2pActions.broadcastPeer(data.peer, [sernderKey]);
+    p2pActions.broadcastPeer(data.peer, [senderKey]);
 };
 
 /**
