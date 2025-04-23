@@ -26,7 +26,7 @@ class Wallet {
             return Buffer.from(seed, 'hex');
         } catch (err) {
             this.#logger.warn(
-                `You dont have any secret. New one will be generated on path: ${secretPath}`,
+                `You don't have any secret. New one will be generated on path: ${secretPath}`,
             );
             const mnemonic = bip39.generateMnemonic();
             this.#logger.warn('----------------------------------------------');
@@ -57,7 +57,7 @@ class Wallet {
         return address;
     }
 
-    getDefaultAdress() {
+    getDefaultAddress() {
         return this.generateAddress(0);
     }
 }

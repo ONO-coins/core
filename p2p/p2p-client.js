@@ -28,7 +28,7 @@ exports.needReconnect = () => {
     );
     if (isConnectedToDefaultServer) return false;
 
-    const lastValidBlockDate = state.lastValidBlockDate();
+    const lastValidBlockDate = state.getState(state.KEYS.LAST_VALID_EXTERNAL_BLOCK_DATE);
     const now = new Date();
     const dif = now.getTime() - lastValidBlockDate.getTime();
     if (dif < BLOCK_LAG_FOR_RECONNECT) return false;
@@ -65,7 +65,7 @@ exports.connectToPear = (address, gossip) => {
 
     const socket = new WebSocket(peer, {
         headers: {
-            [NODE_ID_HEADER]: state.id(),
+            [NODE_ID_HEADER]: state.getState(state.KEYS.NODE_ID),
         },
     });
     sockets.set(peer, socket);

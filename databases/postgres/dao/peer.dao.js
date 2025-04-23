@@ -24,7 +24,7 @@ const postgresHelperLib = require('../../../lib/postgres-helper.lib');
 exports.create = async (peerData, databaseTransaction) => {
     const newRecord = await peer.create(
         peerData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return newRecord;
 };
@@ -37,7 +37,7 @@ exports.create = async (peerData, databaseTransaction) => {
 exports.findByKey = async (key, databaseTransaction) => {
     const record = await peer.findOne({
         where: { key },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return record;
 };
@@ -51,7 +51,7 @@ exports.findByKey = async (key, databaseTransaction) => {
 exports.updateByKey = async (key, data, databaseTransaction) => {
     const updatedRecord = await peer.update(data, {
         where: { key },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return updatedRecord;
 };
@@ -65,7 +65,7 @@ exports.updateByKey = async (key, data, databaseTransaction) => {
 exports.update = async (params, data, databaseTransaction) => {
     const updatedRecord = await peer.update(data, {
         where: params,
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return updatedRecord;
 };

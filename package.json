@@ -1,6 +1,6 @@
 {
     "name": "ono-core",
-    "version": "1.0.26",
+    "version": "1.1.2",
     "description": "ono cryptocurrency core",
     "main": "app.js",
     "scripts": {

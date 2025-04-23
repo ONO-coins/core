@@ -20,19 +20,19 @@ const postgresHelperLib = require('../../../lib/postgres-helper.lib');
 exports.changeBalance = async (address, amount, burned, affectedBlockId, databaseTransaction) => {
     await balanceModel.update(
         { affectedBlockId },
-        { where: { address }, ...postgresHelperLib.databseTransactionParams(databaseTransaction) },
+        { where: { address }, ...postgresHelperLib.databaseTransactionParams(databaseTransaction) },
     );
     if (burned !== 0) {
         await balanceModel.increment('burned', {
             by: burned,
             where: { address },
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         });
     }
     const result = await balanceModel.increment('balance', {
         by: amount,
         where: { address },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return result;
 };
@@ -50,7 +50,7 @@ exports.updateBalances = async (address, balance, burned, databaseTransaction) =
         {
             where: { address },
             returning: true,
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         },
     );
     return updated[1];
@@ -64,7 +64,7 @@ exports.updateBalances = async (address, balance, burned, databaseTransaction) =
 exports.getBalance = async (address, databaseTransaction) => {
     const record = await balanceModel.findOne({
         where: { address },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return record;
 };
@@ -80,7 +80,7 @@ exports.getBalance = async (address, databaseTransaction) => {
 exports.create = async (address, amount, burned, affectedBlockId, databaseTransaction) => {
     const newRecord = await balanceModel.create(
         { address, balance: amount, burned, affectedBlockId },
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return newRecord;
 };
@@ -93,6 +93,6 @@ exports.create = async (address, amount, burned, affectedBlockId, databaseTransa
 exports.flushBalancesFromBlock = async (blockId, databaseTransaction) => {
     await balanceModel.destroy({
         where: { affectedBlockId: { [Op.gt]: blockId } },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
 };

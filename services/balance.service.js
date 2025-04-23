@@ -9,7 +9,7 @@ const sequelize = database.getSequelize();
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
- * @typedef {import('services/block-transaction.servise').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  * @typedef {import('databases/postgres/models/balance.model').Balance} Balance
  * @typedef {import('sequelize').Transaction} DatabaseTransaction
  */
@@ -26,7 +26,7 @@ exports.changeOrCreateBalance = async (address, amount, burned, blockId, databas
     const exists = await balanceDao.getBalance(address, databaseTransaction);
     if (exists) {
         if (exists.affectedBlockId === blockId) {
-            const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(
+            const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
                 address,
                 databaseTransaction,
             );
@@ -48,7 +48,7 @@ exports.changeOrCreateBalance = async (address, amount, burned, blockId, databas
             return record;
         }
     } else {
-        const { balance, burnedBalance } = await sharedBalanceService.calculateBalace(
+        const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
             address,
             databaseTransaction,
         );

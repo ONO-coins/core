@@ -19,5 +19,4 @@ exports.AVERAGE_PEERS_COUNT = 20;
 exports.MIN_PEERS_COUNT = 2;
 exports.BLOCK_LAG_FOR_RECONNECT = 120_000;
 exports.NODE_ID_HEADER = 'node-id';
-exports.NETWORK_LAG = 5_000;
 exports.SELF_CONNECTION_ERROR_CODE = 4001;

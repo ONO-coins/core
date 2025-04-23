@@ -1,4 +1,4 @@
-const transactionService = require('../services/transaction.servise');
+const transactionService = require('../services/transaction.service');
 const transactionPoolDao = require('../databases/postgres/dao/transaction-pool.dao');
 const p2pActions = require('../p2p/p2p-actions');
 
@@ -8,16 +8,16 @@ const p2pActions = require('../p2p/p2p-actions');
 
 /**
  * @param {Transaction} transactionData
- * @param {string} [sernderKey]
+ * @param {string} [senderKey]
  * @returns {Promise<Transaction>}
  */
-exports.newTransaction = async (transactionData, sernderKey) => {
+exports.newTransaction = async (transactionData, senderKey) => {
     const validBalance = await transactionService.validateTransaction(transactionData);
     if (!validBalance) throw new Error(validBalance.error);
 
     const transaction = await transactionService.newTransaction(transactionData);
 
     await transactionPoolDao.upsert(transaction.hash);
-    p2pActions.broadcastTransaction(transaction, [sernderKey]);
+    p2pActions.broadcastTransaction(transaction, [senderKey]);
     return transaction;
 };

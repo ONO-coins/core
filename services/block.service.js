@@ -1,3 +1,4 @@
+const Big = require('big.js');
 const state = require('../state');
 const blockDao = require('../databases/postgres/dao/block.dao');
 const transactionDao = require('../databases/postgres/dao/transaction.dao');
@@ -18,9 +19,8 @@ const {
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
  * @typedef {import('databases/postgres/models/block.model').Block} Block
- * @typedef {import('services/block-transaction.servise').BlockWithTransactions} BlockWithTransactions
+ * @typedef {import('services/block-transaction.service').BlockWithTransactions} BlockWithTransactions
  * @typedef {import('hdkey')} HDNode
- * @typedef {import('state').BlockStats} BlockStats
  */
 
 /**
@@ -104,7 +104,7 @@ exports.init = async () => {
     const lastBlock = await blockDao.getLastBlock();
     if (lastBlock) {
         const immutableBlockId = await this.getImmutableBlockId();
-        state.setImmutableBlockId(immutableBlockId);
+        this.setImmutableBlockId(immutableBlockId);
         return;
     }
 
@@ -121,7 +121,7 @@ exports.init = async () => {
         const transaction = initialTransaction[i];
         await balanceDao.create(transaction.to, transaction.amount, 0, INITIAL_BLOCK.id);
         if (transaction.to === BLOCKCHAIN_SETTINGS.BURN_ADDRESS) {
-            const amount = -transaction.amount - transaction.fee;
+            const amount = new Big(0).minus(transaction.amount).minus(transaction.fee).toNumber();
             await balanceDao.changeBalance(
                 transaction.from,
                 amount,
@@ -131,7 +131,7 @@ exports.init = async () => {
         }
     }
 
-    state.setImmutableBlockId(INITIAL_BLOCK.id);
+    this.setImmutableBlockId(INITIAL_BLOCK.id);
 };
 
 /**
@@ -152,12 +152,42 @@ exports.checkNewBlockId = async (newBlock) => {
 };
 
 /**
+ * @param {Block} newBlock
+ * @returns {boolean}
+ */
+exports.checkNewBlockTimings = (newBlock) => {
+    const currentTimestamp = Math.round(Date.now() / 1000);
+    if (currentTimestamp < newBlock.timestamp - BLOCKCHAIN_SETTINGS.MAX_TIMESTAMP_DIFF)
+        return false;
+
+    return true;
+};
+
+/**
  * @returns {Promise<number>}
  */
 exports.getImmutableBlockId = async () => {
     const publicKey = wallet.getDefaultPublicKey();
     const lastBlock = await blockDao.getLastExternalBlock(publicKey);
     return Math.max(0, lastBlock.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT);
+};
+
+/**
+ * @param {number} id
+ */
+exports.setImmutableBlockId = async (id) => {
+    const immutableBlockId = Math.max(0, id);
+    state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);
+};
+
+/**
+ * @param {BlockWithTransactions} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockTarget = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    const target = this.createBlockTarget(previousBlock, block.timestamp);
+    return target === block.target;
 };
 
 /**

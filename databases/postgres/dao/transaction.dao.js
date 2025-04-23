@@ -1,3 +1,4 @@
+const Big = require('big.js');
 const { Op } = require('sequelize');
 const { MODEL_NAME } = require('../../../constants/models/transaction.constants');
 const {
@@ -22,7 +23,7 @@ const { BLOCKCHAIN_SETTINGS } = require('../../../constants/app.constants');
 exports.findOne = async (hash, databaseTransaction) => {
     const record = await transaction.findOne({
         where: { hash },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return record?.toJSON();
 };
@@ -35,7 +36,7 @@ exports.findOne = async (hash, databaseTransaction) => {
 exports.create = async (transactionData, databaseTransaction) => {
     const newTransaction = await transaction.create(
         transactionData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return newTransaction.toJSON();
 };
@@ -48,7 +49,7 @@ exports.upsert = async (transactionData) => {
     const databaseTransaction = await sequelize.transaction();
     const existedTransaction = await transaction.findOne({
         where: { hash: transactionData.hash },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
 
     if (existedTransaction) {
@@ -58,7 +59,7 @@ exports.upsert = async (transactionData) => {
 
     const newTransaction = await transaction.create(
         transactionData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     await databaseTransaction.commit();
     return newTransaction.toJSON();
@@ -72,7 +73,7 @@ exports.upsert = async (transactionData) => {
 exports.findByHashes = async (transactionHashes, databaseTransaction) => {
     const existedTransactions = await transaction.findAll({
         where: { hash: { [Op.in]: transactionHashes } },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     return existedTransactions;
 };
@@ -85,7 +86,7 @@ exports.findByHashes = async (transactionHashes, databaseTransaction) => {
 exports.bulkCreate = async (transactionsData, databaseTransaction) => {
     const createdTransactions = await transaction.bulkCreate(
         transactionsData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return createdTransactions;
 };
@@ -100,7 +101,7 @@ exports.bulkUpsert = async (transactions, databaseTransaction) => {
     const existedTransactions = await transaction.findAll({
         attributes: ['hash'],
         where: { hash: { [Op.in]: transactionHashes } },
-        ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+        ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
     });
     const existingHashedSet = new Set(existedTransactions.map((record) => record.hash));
     const newTransactionsData = transactions.filter(
@@ -108,7 +109,7 @@ exports.bulkUpsert = async (transactions, databaseTransaction) => {
     );
     const createdTransactions = await transaction.bulkCreate(
         newTransactionsData,
-        postgresHelperLib.databseTransactionParams(databaseTransaction),
+        postgresHelperLib.databaseTransactionParams(databaseTransaction),
     );
     return createdTransactions;
 };
@@ -125,7 +126,7 @@ exports.calculateBalance = async (address, databaseTransaction) => {
             include: [
                 { association: BLOCK_TRANSACTION_MODEL_NAME, required: true, attributes: [] },
             ],
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         })) || 0;
     const credit =
         (await transaction.sum('amount', {
@@ -133,7 +134,7 @@ exports.calculateBalance = async (address, databaseTransaction) => {
             include: [
                 { association: BLOCK_TRANSACTION_MODEL_NAME, required: true, attributes: [] },
             ],
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         })) || 0;
     const fee =
         (await transaction.sum('fee', {
@@ -141,9 +142,9 @@ exports.calculateBalance = async (address, databaseTransaction) => {
             include: [
                 { association: BLOCK_TRANSACTION_MODEL_NAME, required: true, attributes: [] },
             ],
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         })) || 0;
-    return debit - credit - fee;
+    return new Big(debit).minus(credit).minus(fee).toNumber();
 };
 
 /**
@@ -158,7 +159,7 @@ exports.calculateBurnedBalance = async (address, databaseTransaction) => {
             include: [
                 { association: BLOCK_TRANSACTION_MODEL_NAME, required: true, attributes: [] },
             ],
-            ...postgresHelperLib.databseTransactionParams(databaseTransaction),
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
         })) || 0;
     return burnedBalance;
 };

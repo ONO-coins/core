@@ -1,112 +1,42 @@
 const { v4: uuidv4 } = require('uuid');
-const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
+
+const stateStorage = {};
+
+exports.KEYS = {
+    FORGING: 'forging',
+    FORGER_PREDICTED_TIMESTAMP: 'forgingPredictedTimestamp',
+    SYNCING: 'syncing',
+    SYNCHRONIZED: 'synchronized',
+    CHAIN_PROCESSING: 'chainProcessing',
+    PROCESSING_BLOCK_ID: 'processingBlockId',
+    LAST_VALID_EXTERNAL_BLOCK_DATE: 'lastValidExternalBlockDate',
+    IMMUTABLE_BLOCK_ID: 'immutableBlockId',
+    NODE_ID: 'nodeId',
+};
 
 /**
- * @typedef {Object} BlockStats
- * @property {number} invalidBlocksRov
- * @property {number} avarageInvalidDelay
- * @property {number} avarageInvalidTarget
- * @property {Date} lastBlockTime
+ * @param {string} key
+ * @param {any} value
  */
+exports.setState = (key, value) => {
+    stateStorage[key] = value;
+};
 
-class State {
-    #forging;
-    #syncing;
-    #synchronized;
-    #immutableBlockId;
-    #externalBlockDate;
-    #chainProcessing;
-    #id;
-    #processingBlock;
+/**
+ * @param {string} key
+ * @returns {any}
+ */
+exports.getState = (key) => {
+    return stateStorage[key];
+};
 
-    constructor() {
-        this.#forging = process.env.FORGING === 'true';
-        this.#syncing = false;
-        this.#synchronized = false;
-        this.#chainProcessing = false;
-        this.#id = uuidv4();
-        this.#externalBlockDate = new Date();
-    }
-
-    validBlock() {
-        this.#externalBlockDate = new Date();
-    }
-
-    lastValidBlockDate() {
-        return this.#externalBlockDate;
-    }
-
-    isForging() {
-        return this.#forging;
-    }
-
-    startForging() {
-        this.#forging = process.env.FORGING === 'true';
-    }
-
-    stopForging() {
-        this.#forging = false;
-    }
-
-    isSyncing() {
-        return this.#syncing;
-    }
-
-    startSync() {
-        this.#syncing = true;
-        this.#synchronized = false;
-        this.#forging = false;
-    }
-
-    stopSync() {
-        this.#syncing = false;
-    }
-
-    isSynchronized() {
-        return this.#synchronized;
-    }
-
-    setSynchronized() {
-        this.#synchronized = true;
-    }
-
-    /**
-     * @param {number} id
-     */
-    setImmutableBlockId(id) {
-        this.#immutableBlockId = Math.max(0, id);
-    }
-
-    getImmutableBlockId() {
-        return this.#immutableBlockId;
-    }
-
-    chainProcessing() {
-        return this.#chainProcessing;
-    }
-
-    stopChainProcessing() {
-        this.#chainProcessing = false;
-    }
-
-    startChainProcessing() {
-        this.#chainProcessing = true;
-    }
-
-    id() {
-        return this.#id;
-    }
-
-    /**
-     * @param {number} id
-     */
-    setProcessindBlock(id) {
-        this.#processingBlock = id;
-    }
-
-    getProcessindBlock() {
-        return this.#processingBlock;
-    }
-}
-
-module.exports = new State();
+exports.init = () => {
+    stateStorage[this.KEYS.NODE_ID] = uuidv4();
+    stateStorage[this.KEYS.FORGING] = process.env.FORGING === 'true';
+    stateStorage[this.KEYS.SYNCING] = false;
+    stateStorage[this.KEYS.CHAIN_PROCESSING] = false;
+    stateStorage[this.KEYS.SYNCHRONIZED] = true;
+    stateStorage[this.KEYS.LAST_VALID_EXTERNAL_BLOCK_DATE] = new Date();
+    stateStorage[this.KEYS.IMMUTABLE_BLOCK_ID] = 0;
+    stateStorage[this.KEYS.FORGER_PREDICTED_TIMESTAMP] = 0;
+};

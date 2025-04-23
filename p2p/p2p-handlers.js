@@ -4,7 +4,6 @@ const p2pActions = require('./p2p-actions');
 const peerService = require('../services/peer.service');
 const state = require('../state');
 const { logger } = require('../managers/log.manager');
-const { NETWORK_LAG } = require('../constants/p2p.constants');
 
 /**
  * @typedef {import('ws').WebSocket} WebSocket
@@ -24,7 +23,8 @@ exports.socketConnected = async (socket, socketKey, serverConnection) => {
     p2pActions.askForPeers(socket);
     if (serverConnection) {
         await peerService.serverConnection(socketKey);
-        p2pActions.sendId(socket, state.id());
+        const nodeId = state.getState(state.KEYS.NODE_ID);
+        p2pActions.sendId(socket, nodeId);
     } else {
         await peerService.clientConnection(socketKey);
     }

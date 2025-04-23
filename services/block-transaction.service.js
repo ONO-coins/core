@@ -1,7 +1,7 @@
 const blockDao = require('../databases/postgres/dao/block.dao');
 const blockTransactionDao = require('../databases/postgres/dao/block-transaction.dao');
 const blockService = require('./block.service');
-const transactionService = require('./transaction.servise');
+const transactionService = require('./transaction.service');
 const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
 const state = require('../state');
 const wallet = require('../wallet');
@@ -31,6 +31,9 @@ exports.validateBlock = async (block) => {
     const previousHashValid = await blockService.checkBlockPreviousHash(blockWithoutTransactions);
     if (!previousHashValid)
         return { valid: false, error: `Block ${block.id} has invalid previous block hash` };
+
+    const validTarget = await blockService.checkBlockTarget(block);
+    if (!validTarget) return { valid: false, error: `Block ${block.id} has invalid target` };
 
     const transactionsCheck = await transactionService.validateTransactions(transactions);
     if (!transactionsCheck.valid) return transactionsCheck;
@@ -69,7 +72,8 @@ exports.validateChain = async (chain) => {
     const initialBlock = await blockDao.getByHash(initialChainHash);
     if (!initialBlock) return { valid: false, error: 'Immutable block does not found' };
 
-    if (initialBlock.id < state.getImmutableBlockId())
+    const immutableBlockId = state.getState(state.KEYS.IMMUTABLE_BLOCK_ID);
+    if (initialBlock.id < immutableBlockId)
         return { valid: false, error: 'Cant change immutable blocks' };
 
     const publicKey = wallet.getDefaultPublicKey();

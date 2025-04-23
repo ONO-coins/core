@@ -25,7 +25,8 @@ function serverConnectionHandler(socket, request) {
         return;
     }
 
-    if (nodeId === state.id()) {
+    const ourNodeId = state.getState(state.KEYS.NODE_ID);
+    if (nodeId === ourNodeId) {
         logger.info(`Trying connect to ourselves. Aborting connection.`);
         socket.close(SELF_CONNECTION_ERROR_CODE, 'Self-connection detected');
         return;

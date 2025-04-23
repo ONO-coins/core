@@ -54,3 +54,16 @@ exports.verifyBlockHit = async (block) => {
     const lastBlock = await blockDao.getById(block.id - 1);
     return this.verifyHit(lastBlock, block.timestamp, block.publicKey);
 };
+
+/**
+ * @param {Block} latestBlock
+ * @param {string} publicKey
+ * @returns {Promise<number>}
+ */
+exports.predictForgingTimestamp = async (latestBlock, publicKey) => {
+    const target = this.calcTarget(latestBlock, publicKey);
+    const previousTarget = Number(latestBlock.target);
+    const forgerBalance = await balanceService.getBurnedBalance(publicKey, latestBlock.id);
+    const nextTimestamp = target / (previousTarget * forgerBalance) + latestBlock.timestamp;
+    return Math.ceil(nextTimestamp);
+};

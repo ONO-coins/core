@@ -11,7 +11,7 @@ exports.getWallet = () => {
 };
 
 exports.getDefaultPrivateKey = () => {
-    const defaultAddress = this.wallet.getDefaultAdress();
+    const defaultAddress = this.wallet.getDefaultAddress();
     return defaultAddress.privateKey;
 };
 
@@ -19,6 +19,6 @@ exports.getDefaultPrivateKey = () => {
  * @returns {string}
  */
 exports.getDefaultPublicKey = () => {
-    const defaultAddress = this.wallet.getDefaultAdress();
+    const defaultAddress = this.wallet.getDefaultAddress();
     return defaultAddress.publicKey.toString('hex');
 };

@@ -13,7 +13,7 @@ const sequelize = database.getSequelize();
  * @typedef {import('sequelize').Transaction} DatabaseTransaction
  * @typedef {import('ws').RawData} RawData
  * @typedef {typeof PEER_TYPES[keyof typeof PEER_TYPES]} nodeType
- * @typedef {typeof P2P_MESSAGE_TYPES[keyof typeof P2P_MESSAGE_TYPES]} mesasgeType
+ * @typedef {typeof P2P_MESSAGE_TYPES[keyof typeof P2P_MESSAGE_TYPES]} MessageType
  */
 
 /**
@@ -100,11 +100,12 @@ exports.init = async () => {
 
 /**
  * @param {string} key
- * @param {mesasgeType} messageType
+ * @param {MessageType} messageType
  * @returns {Promise<boolean>}
  */
 exports.messageEvent = async (key, messageType) => {
-    if (state.isSyncing()) return;
+    const isSyncing = state.getState(state.KEYS.SYNCING);
+    if (isSyncing) return;
 
     const databaseTransaction = await sequelize.transaction();
     const peer = await peerDao.findByKey(key, databaseTransaction);
