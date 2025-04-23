@@ -54,30 +54,48 @@ const generateBlock = async (lastBlock, timestamp) => {
     }
 };
 
+/**
+ * @returns {Boolean}
+ */
 exports.isForging = () => {
     const forging = state.getState(state.KEYS.FORGING);
     const syncing = state.getState(state.KEYS.SYNCING);
     return forging && !syncing;
 };
 
+/**
+ * @param {number} currentTimestamp
+ * @returns {Boolean}
+ */
+exports.checkPredictedTime = (currentTimestamp) => {
+    const nextTimestamp = state.getState(state.KEYS.FORGER_PREDICTED_TIMESTAMP);
+    return nextTimestamp > currentTimestamp;
+};
+
 exports.forge = async () => {
     if (!this.isForging()) return;
+
+    const timestamp = Math.round(Date.now() / 1000);
+    if (this.checkPredictedTime(timestamp)) return;
 
     try {
         const lastBlock = await blockDao.getLastBlock();
         const processingBlockId = state.getState(state.KEYS.PROCESSING_BLOCK_ID);
         if (lastBlock.id + 1 === processingBlockId) return;
 
-        const timestamp = Math.round(Date.now() / 1000);
         const hitVerified = await forgerService.verifyHit(lastBlock, timestamp, publicKey);
 
-        if (hitVerified) {
-            logger.info(`Creating new block...`);
-            const newBlock = await generateBlock(lastBlock, timestamp);
-            if (newBlock) {
-                logger.info(`New block ${newBlock.id} created`);
-                p2pActions.broadcastBlock(newBlock);
-            }
+        if (!hitVerified) {
+            const nextTimestamp = await forgerService.predictForgingTimestamp(lastBlock, publicKey);
+            state.setState(state.KEYS.FORGER_PREDICTED_TIMESTAMP, nextTimestamp);
+            return;
+        }
+
+        logger.info(`Creating new block...`);
+        const newBlock = await generateBlock(lastBlock, timestamp);
+        if (newBlock) {
+            logger.info(`New block ${newBlock.id} created`);
+            p2pActions.broadcastBlock(newBlock);
         }
     } catch (err) {
         logger.error(err);

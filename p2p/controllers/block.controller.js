@@ -31,6 +31,7 @@ exports.onBlock = async (blockData, socket, senderKey) => {
         if (!success) return;
 
         state.setState(state.KEYS.LAST_VALID_EXTERNAL_BLOCK_DATE, new Date());
+        state.setState(state.KEYS.FORGER_PREDICTED_TIMESTAMP, 0);
 
         const immutableBlockId = blockData.id - BLOCKCHAIN_SETTINGS.MAX_MUTABLE_BLOCK_COUNT;
         blockService.setImmutableBlockId(immutableBlockId);

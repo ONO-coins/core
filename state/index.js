@@ -4,6 +4,7 @@ const stateStorage = {};
 
 exports.KEYS = {
     FORGING: 'forging',
+    FORGER_PREDICTED_TIMESTAMP: 'forgingPredictedTimestamp',
     SYNCING: 'syncing',
     SYNCHRONIZED: 'synchronized',
     CHAIN_PROCESSING: 'chainProcessing',
@@ -37,4 +38,5 @@ exports.init = () => {
     stateStorage[this.KEYS.SYNCHRONIZED] = true;
     stateStorage[this.KEYS.LAST_VALID_EXTERNAL_BLOCK_DATE] = new Date();
     stateStorage[this.KEYS.IMMUTABLE_BLOCK_ID] = 0;
+    stateStorage[this.KEYS.FORGER_PREDICTED_TIMESTAMP] = 0;
 };
