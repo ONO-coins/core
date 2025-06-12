@@ -117,7 +117,8 @@ exports.messageEvent = async (key, messageType) => {
     const minAllowedFrequency =
         messageType === P2P_MESSAGE_TYPES.SYNC_REQUEST ? FREQUENCY.SYNCING_MIN : FREQUENCY.MIN;
     const isSpam = peer.messageFrequency < minAllowedFrequency;
-    if (isSpam) {
+
+    if (peer.messageFrequency < FREQUENCY.SYNCING_MIN) {
         await databaseTransaction.commit();
         return isSpam;
     }
