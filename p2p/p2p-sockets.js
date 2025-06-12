@@ -48,6 +48,13 @@ exports.checkId = (id) => {
 };
 
 /**
+ * @param {string} id
+ */
+exports.delete = (id) => {
+    sockets.delete(id);
+};
+
+/**
  * @param {P2P_MESSAGE_TYPES} type
  * @param {Object} data
  * @param {Array<string>} [ignoreKeys]

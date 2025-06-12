@@ -18,6 +18,11 @@ const { NODE_ID_HEADER, SELF_CONNECTION_ERROR_CODE } = require('../constants/p2p
 function serverConnectionHandler(socket, request) {
     const urlParams = new URLSearchParams(request.url.split('?')[1]);
     const nodeId = request.headers[NODE_ID_HEADER] || urlParams.get(NODE_ID_HEADER);
+    const id = String(nodeId);
+
+    socket.on('close', () => {
+        p2pHandlers.socketDisconnected(socket, id);
+    });
 
     if (!nodeId) {
         logger.info(`No node id provided.`);
@@ -31,9 +36,7 @@ function serverConnectionHandler(socket, request) {
         socket.close(SELF_CONNECTION_ERROR_CODE, 'Self-connection detected');
         return;
     }
-
     const sockets = p2pSockets.getSockets();
-    const id = String(nodeId);
     if (sockets.has(id)) {
         logger.info(`We are already connected to ${id}, preventing double connection.`);
         socket.close();
@@ -41,12 +44,8 @@ function serverConnectionHandler(socket, request) {
     }
 
     sockets.set(id, socket);
-    p2pHandlers.socketConnected(socket, id, true);
 
-    socket.on('close', (code) => {
-        if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(id);
-        p2pHandlers.socketDisconnected(socket, id);
-    });
+    p2pHandlers.socketConnected(socket, id, true);
 }
 
 /**
