@@ -37,6 +37,7 @@ exports.socketConnected = async (socket, socketKey, serverConnection) => {
  */
 exports.socketDisconnected = async (socket, socketKey) => {
     const disconnectionTime = new Date();
+    p2pSockets.delete(socketKey);
     const sockets = p2pSockets.getSockets();
     logger.info(`Socket ${socketKey} closed, Connections count: ${sockets.size}`);
     await peerService.disconnect(socketKey, disconnectionTime);

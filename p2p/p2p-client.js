@@ -84,9 +84,8 @@ exports.connectToPear = (address, gossip) => {
         logger.warn(`Connection problems with peer ${peer}`);
         sockets.delete(peer);
     });
-    socket.on('close', async (code) => {
+    socket.on('close', async () => {
         clearInterval(pingInterval);
-        if (code !== SELF_CONNECTION_ERROR_CODE) sockets.delete(peer);
         await p2pHandlers.socketDisconnected(socket, peer);
     });
 };
