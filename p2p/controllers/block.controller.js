@@ -102,7 +102,16 @@ exports.onChain = async (chain, socket) => {
 
     try {
         const chainValidationResult = await blockTransactionService.validateChain(chain);
-        if (!chainValidationResult.valid) throw new Error(chainValidationResult.error);
+        if (!chainValidationResult.valid) {
+            // Not adopting the chain is a normal outcome (e.g. a stale/redundant sync
+            // whose blocks we already have, or one that lost the difficulty compare),
+            // not an error — settle quietly instead of logging a scary warning (S6).
+            logger.debug(`Chain not adopted: ${chainValidationResult.error}`);
+            state.setState(state.KEYS.SYNCING, false);
+            state.setState(state.KEYS.CHAIN_PROCESSING, false);
+            state.setState(state.KEYS.SYNCHRONIZED, true);
+            return;
+        }
 
         // Roll our chain back to the common ancestor atomically, so the delete and
         // the balance flush can't half-apply (review M3). Each replacement block is

@@ -65,7 +65,12 @@ exports.generateSignature = (block, keyPair) => {
  * @returns {Big}
  */
 exports.blockDifficulty = (target) => {
-    return new Big(BLOCKCHAIN_SETTINGS.MAX_TARGET).div(target);
+    const value = Number(target);
+    // A malicious chain could carry an out-of-range target; treat it as zero work
+    // (so it can never out-weigh an honest chain) rather than dividing by zero.
+    // Per-block validation (checkBlockTarget) rejects the block regardless.
+    if (!Number.isFinite(value) || value < BLOCKCHAIN_SETTINGS.MIN_TARGET) return new Big(0);
+    return new Big(BLOCKCHAIN_SETTINGS.MAX_TARGET).div(value);
 };
 
 /**

@@ -156,11 +156,29 @@ Fixed the real wedge: a sync ending on an exact batch multiple never finalized.
 
 ## 🟢 MINOR / HYGIENE
 
-- Replay protection thin (no per-account nonce).
-- ECDSA malleability not normalized (no low-S) — low impact.
-- `target` only 36 bits (`forger.service.js:18`).
-- Total-supply invariant never enforced; typo `TOTAl_CAPACITY` (`app.constants.js:2`).
-- Float literals in genesis amounts — keep money in `big.js`/decimal end-to-end.
+Done in the cleanup pass:
+- ✅ `GET /block/chain` with no `fromId` → `id > NaN` SQL error. Guarded in
+  `http-server/controllers/block.controller.js`: missing/invalid `fromId` defaults to
+  genesis. (Found during live testing.)
+- ✅ Transient `Cant change immutable blocks` warn during a redundant/stale sync. A
+  `validateChain` rejection now settles the sync quietly at debug level instead of
+  throwing a scary warning (`p2p/controllers/block.controller.js`).
+- ✅ `blockService.blockDifficulty` guards an out-of-range `target` (returns 0 work
+  instead of dividing by zero) — defensive against a malicious synced chain.
+- ✅ Typo `TOTAl_CAPACITY` → `TOTAL_CAPACITY` (`app.constants.js`; was unused).
+
+Deferred (with rationale — not blockers):
+- **Orphan-tx re-pooling on reorg.** Returning a discarded fork's transactions to the
+  pool is only safe if the forger re-validates pool txs before including them —
+  otherwise a now-invalid orphan would be forged into a block that peers reject. Needs
+  forger-side re-validation + its own test pass; risky to bolt onto the freshly
+  validated reorg path. Today a sender can re-broadcast a dropped tx.
+- **Per-account nonce / replay.** Exact replay is already blocked by tx-hash uniqueness
+  (timestamp is in the hash); a nonce adds ordering guarantees but no new safety here.
+- **ECDSA low-S malleability.** No impact: tx/block identity is the hash, which excludes
+  the signature, so a malleated signature can't create a duplicate record.
+- **Total-supply invariant / `target` 36-bit width / genesis float literals.** Supply is
+  fixed by genesis and C1 blocks minting; these are belt-and-suspenders, left as-is.
 
 ---
 
