@@ -46,13 +46,6 @@ exports.broadcastBlock = (block, ignoreKeys = []) => {
 };
 
 /**
- * @param {number} lastBlockId
- */
-exports.broadcastSyncRequest = (lastBlockId) => {
-    p2pSockets.broadcastMessage(P2P_MESSAGE_TYPES.SYNC_REQUEST, { lastBlockId });
-};
-
-/**
  * @param {string} peer
  * @param {Array<string>} [ignoreKeys]
  */
@@ -90,4 +83,21 @@ exports.sendPeers = (socket, peers) => {
  */
 exports.sendPong = (socket) => {
     socket.send(JSON.stringify({ type: P2P_MESSAGE_TYPES.PONG }));
+};
+
+/**
+ * @param {WebSocket} socket
+ * @param {{lastBlockId: number, lastBlockHash: string}} status
+ * @returns {void}
+ */
+exports.sendStatus = (socket, status) => {
+    socket.send(JSON.stringify({ type: P2P_MESSAGE_TYPES.STATUS, data: status }));
+};
+
+/**
+ * @param {{lastBlockId: number, lastBlockHash: string}} status
+ * @returns {void}
+ */
+exports.broadcastStatus = (status) => {
+    p2pSockets.broadcastMessage(P2P_MESSAGE_TYPES.STATUS, status);
 };

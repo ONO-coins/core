@@ -2,10 +2,7 @@ const Big = require('big.js');
 const balanceDao = require('../databases/postgres/dao/balance.dao');
 const transactionDao = require('../databases/postgres/dao/transaction.dao');
 const sharedBalanceService = require('./shared/balance.service');
-const database = require('../databases/postgres');
 const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
-
-const sequelize = database.getSequelize();
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
@@ -101,19 +98,15 @@ exports.updateByBlock = async (block, databaseTransaction) => {
 };
 
 /**
+ * Forging weight for consensus. Read straight from the chain, scoped to the
+ * parent height, instead of the mutable `balance.burned` cache — the cache can
+ * differ between nodes (forks, partial updates) and make them disagree on whether
+ * a block is forgeable, which desyncs them (review S5). A pure read with no side
+ * effects also keeps block verification from mutating state.
  * @param {string} address
- * @param {number} blockId
+ * @param {number} blockId Parent block height; burns are counted up to it.
  * @returns {Promise<number>}
  */
 exports.getBurnedBalance = async (address, blockId) => {
-    const balanceRecord = await balanceDao.getBalance(address);
-    if (balanceRecord) return balanceRecord.burned;
-
-    const databaseTransaction = await sequelize.transaction();
-    const balance = await transactionDao.calculateBalance(address, databaseTransaction);
-    const burnedBalance = await transactionDao.calculateBurnedBalance(address, databaseTransaction);
-    await balanceDao.create(address, balance, burnedBalance, blockId, databaseTransaction);
-    await databaseTransaction.commit();
-
-    return burnedBalance;
+    return transactionDao.calculateBurnedBalanceUpToBlock(address, blockId);
 };

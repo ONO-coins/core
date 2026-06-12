@@ -90,4 +90,13 @@ module.exports = {
         required: ['peer'],
         additionalProperties: false,
     },
+    [P2P_MESSAGE_TYPES.STATUS]: {
+        type: 'object',
+        properties: {
+            lastBlockId: { type: 'integer', minimum: 0 },
+            lastBlockHash: { type: 'string', minLength: 64, maxLength: 64 },
+        },
+        required: ['lastBlockId', 'lastBlockHash'],
+        additionalProperties: false,
+    },
 };

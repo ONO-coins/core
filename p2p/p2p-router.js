@@ -61,6 +61,9 @@ exports.messageHandler = (socket, key) => {
             case P2P_MESSAGE_TYPES.PEER_GOSSIP:
                 await peersController.onGossip(parsedMessage.data, key);
                 break;
+            case P2P_MESSAGE_TYPES.STATUS:
+                await blockController.onStatus(parsedMessage.data, socket);
+                break;
             case P2P_MESSAGE_TYPES.PING:
                 pingController.onPing(socket);
                 break;

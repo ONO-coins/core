@@ -131,6 +131,22 @@ exports.getBlocksFrom = async (fromId, limit = BLOCKCHAIN_SETTINGS.SYNCHRONIZATI
 };
 
 /**
+ * Targets of all our blocks after `blockId`, oldest first. Used to weigh our
+ * current chain suffix against an incoming fork by cumulative difficulty (S3).
+ * @param {number} blockId
+ * @returns {Promise<Array<{target: number}>>}
+ */
+exports.getTargetsSince = async (blockId) => {
+    const records = await block.findAll({
+        where: { id: { [Op.gt]: blockId } },
+        attributes: ['target'],
+        order: [['id', 'ASC']],
+        raw: true,
+    });
+    return records;
+};
+
+/**
  * @param {number} limit
  * @returns {Promise<number>}
  */

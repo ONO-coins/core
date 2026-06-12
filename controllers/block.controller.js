@@ -37,17 +37,17 @@ exports.onBlock = async (blockData) => {
 
         // check if block exists or we are too far away
         const existingCheck = await blockService.checkNewBlockId(blockData);
-        if (existingCheck === BLOCK_ID_ACTIONS.NEED_REPLACE) {
+        const needReplace = existingCheck === BLOCK_ID_ACTIONS.NEED_REPLACE;
+        if (needReplace) {
             const validSum = await blockTransactionService.compareBlockTransactionSum(blockData);
             if (!validSum) throw new Error(`Block already exists.`);
 
-            const validHit = await sharedBlockService.compareHit(blockData);
-            if (!validHit) throw new Error(`Block already exists.`);
-
-            await sharedBlockService.removeChainSince(blockData.id - 1);
+            const heavier = await sharedBlockService.compareBlockDifficulty(blockData);
+            if (!heavier) throw new Error(`Block already exists.`);
         }
 
-        // Check consensus
+        // Check consensus. All checks above and below are read-only on the chain,
+        // so nothing is mutated until the replacement is proven valid (review S2).
         const consensusValid = await forgerService.verifyBlockHit(blockData);
         if (!consensusValid) throw new Error('Block with invalid consensus');
 
@@ -59,11 +59,18 @@ exports.onBlock = async (blockData) => {
         const { transactions, ...blockWithoutTransactions } = blockData;
 
         try {
+            // Replace a competing tip atomically: the rollback and the insert share
+            // one transaction, so a failure here can never leave us without a block.
+            if (needReplace) {
+                await sharedBlockService.removeChainSince(blockData.id - 1, databaseTransaction);
+            }
+
             // check if existed transactions are in other block
             const transactionHashes = transactions.map((transaction) => transaction.hash);
             const existsInBlock = await blockTransactionDao.getOneInOtherBlock(
                 transactionHashes,
                 blockData.id,
+                databaseTransaction,
             );
             if (existsInBlock) {
                 throw new Error(

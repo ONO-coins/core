@@ -58,6 +58,28 @@ exports.generateSignature = (block, keyPair) => {
 };
 
 /**
+ * Per-block chain work. A lower target is harder to forge, so it must contribute
+ * more weight; MAX_TARGET / target makes the easiest block (target = MAX_TARGET)
+ * worth ~1. Used to choose the canonical chain by cumulative work (review S3).
+ * @param {number} target
+ * @returns {Big}
+ */
+exports.blockDifficulty = (target) => {
+    return new Big(BLOCKCHAIN_SETTINGS.MAX_TARGET).div(target);
+};
+
+/**
+ * Total chain work of a list of blocks (e.g. the contested suffix since a common
+ * ancestor). Forks only differ inside the mutable window, so this is always a
+ * short list and never needs a stored cumulative column.
+ * @param {Array<{target: number}>} blocks
+ * @returns {Big}
+ */
+exports.cumulativeDifficulty = (blocks) => {
+    return blocks.reduce((sum, block) => sum.plus(this.blockDifficulty(block.target)), new Big(0));
+};
+
+/**
  * @param {Block} lastBlock
  * @param {number} timestamp
  * @returns {number}
@@ -178,6 +200,20 @@ exports.getImmutableBlockId = async () => {
 exports.setImmutableBlockId = async (id) => {
     const immutableBlockId = Math.max(0, id);
     state.setState(state.KEYS.IMMUTABLE_BLOCK_ID, immutableBlockId);
+};
+
+/**
+ * A block must advance time past its parent. Without this, a forger can backdate
+ * or stretch `elapsedTime` to inflate its hit and always win fork resolution
+ * (review S4). Forging is only possible when elapsedTime > 0, so honest blocks
+ * always satisfy this.
+ * @param {Block} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockTimestamp = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    if (!previousBlock) return false;
+    return block.timestamp > previousBlock.timestamp;
 };
 
 /**

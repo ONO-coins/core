@@ -4,7 +4,6 @@ const blockService = require('./block.service');
 const transactionService = require('./transaction.service');
 const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
 const state = require('../state');
-const wallet = require('../wallet');
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
@@ -31,6 +30,10 @@ exports.validateBlock = async (block) => {
     const previousHashValid = await blockService.checkBlockPreviousHash(blockWithoutTransactions);
     if (!previousHashValid)
         return { valid: false, error: `Block ${block.id} has invalid previous block hash` };
+
+    const timestampValid = await blockService.checkBlockTimestamp(block);
+    if (!timestampValid)
+        return { valid: false, error: `Block ${block.id} has invalid timestamp` };
 
     const validTarget = await blockService.checkBlockTarget(block);
     if (!validTarget) return { valid: false, error: `Block ${block.id} has invalid target` };
@@ -76,11 +79,14 @@ exports.validateChain = async (chain) => {
     if (initialBlock.id < immutableBlockId)
         return { valid: false, error: 'Cant change immutable blocks' };
 
-    const publicKey = wallet.getDefaultPublicKey();
-    const lastBlock = await blockDao.getLastExternalBlock(publicKey);
-    const lastChainId = chain[chain.length - 1].id;
-    if (lastChainId <= lastBlock.id)
-        return { valid: false, error: 'Incoming chain is shorter than ours' };
+    // Adopt the incoming fork only if it carries strictly more chain work than our
+    // own blocks since the common ancestor — the canonical-chain rule (review S3).
+    // The contested suffix is bounded by the mutable window, so one batch spans it.
+    const ourSuffix = await blockDao.getTargetsSince(initialBlock.id);
+    const ourWork = blockService.cumulativeDifficulty(ourSuffix);
+    const incomingWork = blockService.cumulativeDifficulty(chain);
+    if (incomingWork.lte(ourWork))
+        return { valid: false, error: 'Incoming chain has less cumulative difficulty' };
 
     const chainTransactionStats = this.calculateTransactionStats(chain);
     const uniqueTransactionsCount =

@@ -33,18 +33,33 @@ so the `NEED_REPLACE` competing-block path (`block.controller.js:36-44`) is
 dropped by the dedup guard at line 27 → fork resolution silently disabled.
 **Fix:** treat it purely as a concurrency lock; clear in `finally`.
 
-### S2 — Destructive rewind before validation & outside the DB transaction ⬜
+### S2 — Destructive rewind before validation & outside the DB transaction ✅
 `removeChainSince(blockData.id - 1)` (`block.controller.js:43`) autocommits a
 `DELETE` before `verifyBlockHit`/`validateBlock` run and before the insert
 transaction opens. An invalid replacement destroys a valid block.
 **Fix:** validate fully first; do rewind + insert in one `sequelize.transaction()`.
 
-### S3 — No cumulative chain-work comparison → deep forks never reconcile ⬜
-`NEED_REPLACE` only fires at equal height (`block.service.js:143`). Forks ≥2
-blocks deep reject each other (`block.service.js:144-148`). No total-work metric.
-**Fix:** track cumulative difficulty; reorg to common ancestor + replay.
+### S3 — No cumulative chain-work comparison → deep forks never reconcile ✅
+**Done (no schema change):**
+- `blockService.blockDifficulty(target)` = `MAX_TARGET / target` and
+  `cumulativeDifficulty(blocks)` (`services/block.service.js`).
+- Same-height: `compareHit` → `compareBlockDifficulty` (`services/shared/block.service.js`)
+  — exact integer target comparison + deterministic hash tiebreak; no balance-cache
+  dependency. Caller updated in `controllers/block.controller.js`.
+- Deeper forks: `validateChain` now gates on cumulative difficulty of the contested
+  suffix (`blockDao.getTargetsSince`) instead of chain length, keeping the tx
+  count/sum anti-abuse checks (`services/block-transaction.service.js`).
+- Work is computed on demand from stored `target`s; forks only differ inside the
+  mutable window (≤15 < batch 30), so one sync batch spans the contested region.
+- **Note:** a sync ending exactly on a 30-block batch boundary can leave `SYNCING`
+  true (pre-existing; track under S6/S7). Multi-batch forks deeper than one batch
+  rely on incremental application as before.
 
-### S4 — Tiebreak rewards later/withheld blocks; timestamps barely bounded ⬜
+### S4 — Tiebreak rewards later/withheld blocks; timestamps barely bounded ✅
+> Done: monotonic lower bound (`checkBlockTimestamp`) added to `validateBlock`; future
+> +30s bound already existed. The timestamp-dependent tiebreak is resolved by S3 —
+> fork choice now uses target/work, where a later timestamp yields a *higher* target
+> and therefore *loses*, so withholding no longer pays.
 `compareHit` keeps the higher hit (`shared/block.service.js:31`); hit grows with
 `elapsedTime` (`forger.service.js:33`). `checkNewBlockTimings` only bounds the
 future (+30s), no lower bound, no `> prevBlock.timestamp`
@@ -52,25 +67,45 @@ future (+30s), no lower bound, no `> prevBlock.timestamp`
 **Fix:** require `prev.timestamp < block.timestamp <= now + skew`; reconsider
 timestamp-dependent tiebreak.
 
-### S5 — Fork choice depends on mutable cached balances ⬜
-`getBurnedBalance` returns cached `balance.burned` (`balance.service.js:108-110`);
-nodes can hold different cached values → different fork winners → permanent split.
-**Fix:** source fork-critical balances from authoritative height-consistent data.
+### S5 — Fork choice / consensus depend on mutable cached balances ✅
+S3 removed the cache dependency from fork *choice*. S5 now removes it from consensus
+*acceptance*:
+- New `transactionDao.calculateBurnedBalanceUpToBlock(address, maxBlockId)` sums
+  on-chain burns confirmed in blocks `<= maxBlockId`.
+- `balanceService.getBurnedBalance` is now a pure, height-scoped read (no cache read,
+  no cache write/side effects). Callers already pass the parent height.
+- **Determinism:** `verifyBlockHit` validates `previousHash`, so two nodes only
+  compare burned balances when they agree on the parent → they share the identical
+  block prefix up to the parent height → identical burned totals. A competing block
+  at the same height is excluded by the scope, so it can't pollute the count.
+- The spendable-balance cache (`balance.burned` column) is untouched and still used
+  for wallet/API balance reads via `shared/balance.service.calculateBalance`.
 
-### S6 — No proactive sync (startup/periodic height gossip) ⬜
-Sync only triggers reactively on gap >1 `SyncError`. A node one block behind can
-stay behind. **Fix:** exchange best-block height/hash on connect + periodically.
+### S6 — No proactive sync (startup/periodic height gossip) ✅
+New `STATUS` message (`{lastBlockId, lastBlockHash}`):
+- Sent on connect (`p2p-handlers.socketConnected` → `blockController.sendStatus`) and
+  broadcast every `STATUS_BROADCAST_INTERVAL` (30s) from `p2p/index.js`.
+- `blockController.onStatus`: if the peer is ahead, or at our height on a different
+  block, set `SYNCHRONIZED=false` and `syncRequest(socket, immutableBlockId)`;
+  `validateChain` then decides by cumulative difficulty (S3). Steady state (same tip)
+  is a no-op, so no churn.
+- Reuses the existing `SYNC_REQUEST → CHAIN → onChain` path; also heals tip forks
+  that a missed `NEW_BLOCK` broadcast would otherwise leave split.
+- Trade-off: a behind node re-applies its ≤15-block mutable window on catch-up
+  (correct, bounded, only when actually behind).
 
-### S7 — `onChain` can wedge the `SYNCING` flag ⬜
-Early `return` when `CHAIN_PROCESSING` is set leaves `SYNCING = true`
-(`p2p/controllers/block.controller.js:84-90`); stuck node stops forging.
-**Fix:** always clear flags in `finally`.
+### S7 — `onChain` can wedge the `SYNCING` flag ✅ (folded into S6)
+Fixed the real wedge: a sync ending on an exact batch multiple never finalized.
+- `syncRequest` now always answers (empty chain = "you reached my tip").
+- `onChain` finalizes on an empty chain, continues with the **same** socket (a
+  behind peer can't end our sync early), and restores `SYNCHRONIZED=true` on error
+  so a failed attempt can't leave us perpetually "not synced".
 
 ---
 
 ## 🟡 MEDIUM
 
-- **M1** — Hit/target math overflows `MAX_SAFE_INTEGER` (`forger.service.js:33`); use `big.js`/BigInt consistently.
+- **M1** — ✅ Hit/target math now uses `big.js` (`calcHit`, `predictForgingTimestamp`, `verifyHit`, `compareHit`); avoids cross-node rounding disagreement on close forks.
 - **M2** — Default READ COMMITTED + forger/onBlock race; add mutex and/or SERIALIZABLE for chain mutations.
 - **M3** — `removeSinceBlockId` multi-statement raw query autocommits outside the surrounding transaction (`block-transaction.dao.js:100-122`).
 - **M4** — `validateTransactionBalance` has write side effects and uses strict `>` (`transaction.service.js:69-82`).
