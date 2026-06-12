@@ -59,6 +59,28 @@ exports.validateFee = (transaction) => {
 };
 
 /**
+ * Guards against non-positive amounts and negative fees. Without this a signed
+ * transaction with a negative amount flips the balance signs in
+ * balance.service.updateByTransaction, letting the sender credit themselves and
+ * debit the recipient (see security review C1).
+ * @param {Transaction} transaction
+ * @returns {{valid: boolean, error?: string}}
+ */
+exports.validateAmount = (transaction) => {
+    let amount;
+    let fee;
+    try {
+        amount = new Big(transaction.amount);
+        fee = new Big(transaction.fee);
+    } catch (error) {
+        return { valid: false, error: 'Invalid transaction amount or fee' };
+    }
+    if (amount.lte(0)) return { valid: false, error: 'Transaction amount must be positive' };
+    if (fee.lt(0)) return { valid: false, error: 'Transaction fee must not be negative' };
+    return { valid: true };
+};
+
+/**
  * @param {Transaction} transaction
  * @returns {Promise<boolean>}
  */
@@ -87,6 +109,9 @@ exports.validateTransactionBalance = async (transaction) => {
  * @returns {Promise<{valid: boolean, error?: string}>}
  */
 exports.validateTransaction = async (transaction) => {
+    const validAmount = this.validateAmount(transaction);
+    if (!validAmount.valid) return validAmount;
+
     const validHash = this.validateHash(transaction);
     if (!validHash) return { valid: false, error: 'Invalid transaction hash' };
 
