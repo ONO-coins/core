@@ -8,6 +8,31 @@ crypto (`lib/crypto-utils.lib.js`, `services/forger.service.js`), p2p sync
 
 ---
 
+## Live validation (two isolated nodes, throwaway DBs, no production peer)
+
+- ✅ Boot integrity: full init sequence, no require-time circular deps (despite the
+  new S6 cross-module requires), schema force-sync + genesis correct.
+- ✅ Forging: genesis burner forged blocks on a clean chain with no errors — exercises
+  `verifyHit/calcHit` (M1 big.js) and the S5 height-scoped `getBurnedBalance` query
+  every second.
+- ✅ Sync convergence: a fresh node synced from genesis to the forger's tip; identical
+  tip hashes. Exercises `onChain`, `validateChain` (S3 cumulative difficulty), and the
+  S6/S7 wedge-fixed completion.
+- ✅ Catch-up after offline + restart: node converged again (matching tip hashes),
+  self-healing through a transient race.
+- 🟡 Transient `Cant change immutable blocks` warn during catch-up: benign and correct
+  — the connect-time STATUS sync raced with broadcast blocks that advanced the immutable
+  boundary, so the now-stale sync was correctly rejected and the node had already
+  advanced. S6's `SYNCHRONIZED=true`-on-error settle prevented a wedge. Follow-up: lower
+  the log level / skip the redundant STATUS sync while a broadcast is in flight.
+- 🐛 Pre-existing, unrelated: `GET /block/chain` with no `fromId` → `id > NaN` SQL error
+  (`http-server/controllers/block.controller.js:22`). Input-validation gap, not consensus.
+- Not exercised: a head-to-head same-height fork reorg (needs a second forging identity
+  with burn balance). S3's `compareBlockDifficulty`/cumulative-difficulty path was
+  exercised via sync adoption, but not a live competing fork.
+
+---
+
 ## 🔴 CRITICAL
 
 ### C1 — Reject non-positive amounts / negative fees ✅
