@@ -2,7 +2,6 @@ const Big = require('big.js');
 const cryptoUtilsLib = require('../lib/crypto-utils.lib');
 const transactionDao = require('../databases/postgres/dao/transaction.dao');
 const balanceDao = require('../databases/postgres/dao/balance.dao');
-const blockDao = require('../databases/postgres/dao/block.dao');
 const sharedBalanceService = require('./shared/balance.service');
 const database = require('../databases/postgres');
 
@@ -81,27 +80,24 @@ exports.validateAmount = (transaction) => {
 };
 
 /**
+ * Pure read: validation must not mutate state. The previous version wrote the
+ * balance cache here, which ran during block validation (outside the block's
+ * atomic transaction) and could throw a spurious unique-constraint error when two
+ * validations raced to create the same row (review M4). Uses `>=` so a sender can
+ * spend its entire balance, and big.js to avoid float comparison drift.
  * @param {Transaction} transaction
  * @returns {Promise<boolean>}
  */
 exports.validateTransactionBalance = async (transaction) => {
+    const required = new Big(transaction.amount).plus(transaction.fee);
+
     const balanceRecord = await balanceDao.getBalance(transaction.from);
-    const amount = new Big(transaction.amount).plus(transaction.fee).toNumber();
+    if (balanceRecord) return new Big(balanceRecord.balance).gte(required);
 
-    if (balanceRecord && balanceRecord.balance > amount) return true;
-
-    const { balance, burnedBalance } = await sharedBalanceService.calculateBalance(
-        transaction.from,
-    );
-    const lastBlockId = await blockDao.getLastBlock();
-
-    if (balanceRecord) {
-        await balanceDao.updateBalances(transaction.from, balance, burnedBalance);
-    } else {
-        await balanceDao.create(transaction.from, balance, burnedBalance, lastBlockId.id);
-    }
-
-    return balance > amount;
+    // No cache row (e.g. flushed by a reorg): fall back to the authoritative
+    // on-chain balance instead of assuming zero.
+    const { balance } = await sharedBalanceService.calculateBalance(transaction.from);
+    return new Big(balance).gte(required);
 };
 
 /**

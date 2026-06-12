@@ -23,10 +23,14 @@ exports.messageHandler = (socket, key) => {
             return;
         }
 
-        const spamming = await peerService.messageEvent(key, parsedMessage.type);
-        if (spamming) {
-            logger.debug(`socket ${key} ignored because of spam`);
+        const { ignore, close } = await peerService.messageEvent(key, parsedMessage.type);
+        if (close) {
+            logger.debug(`socket ${key} closed for sustained flooding`);
             socket.close();
+            return;
+        }
+        if (ignore) {
+            logger.debug(`socket ${key} message ignored because of spam`);
             return;
         }
 

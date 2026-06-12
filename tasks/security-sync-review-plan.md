@@ -106,10 +106,26 @@ Fixed the real wedge: a sync ending on an exact batch multiple never finalized.
 ## 🟡 MEDIUM
 
 - **M1** — ✅ Hit/target math now uses `big.js` (`calcHit`, `predictForgingTimestamp`, `verifyHit`, `compareHit`); avoids cross-node rounding disagreement on close forks.
-- **M2** — Default READ COMMITTED + forger/onBlock race; add mutex and/or SERIALIZABLE for chain mutations.
-- **M3** — `removeSinceBlockId` multi-statement raw query autocommits outside the surrounding transaction (`block-transaction.dao.js:100-122`).
-- **M4** — `validateTransactionBalance` has write side effects and uses strict `>` (`transaction.service.js:69-82`).
-- **M5** — Spam filter closes socket on bursts, can drop sync messages (`p2p/p2p-router.js`, `peer.service.messageEvent`).
+- **M2** — ✅ Resolved by analysis; no code change (and intentionally so).
+  - The `blocks.id` PRIMARY KEY serializes competing inserts at the same height:
+    if the forger and an inbound block both build height N, exactly one commits;
+    the other gets a `UniqueConstraintError`. The forger's `generateBlock`
+    rolls back (block insert is the first statement, before any balance change);
+    the p2p `onBlock` retries, hits `NEED_REPLACE`, and resolves via
+    `compareBlockDifficulty`. No partial state, no double-spend.
+  - Each chain mutation is one atomic transaction with per-row `increment()`s, and
+    height N+1 can't be forged until N commits (it needs N's hash), so there is no
+    concurrent cross-height balance interleaving to protect against.
+  - `SERIALIZABLE` was rejected: it would raise serialization-failure errors that
+    the code doesn't retry, causing spurious block rejections — strictly worse than
+    the current PK-protected behavior. A global async mutex would add deadlock risk
+    with no correctness gain.
+- **M3** — ✅ `onChain`'s rewind (`removeSinceBlockId` + `flushBalancesFromBlock`) now
+  runs in one transaction; the multi-statement delete was already internally atomic,
+  this closes the gap to the balance flush. Both `removeSinceBlockId` call sites now
+  receive a transaction.
+- **M4** — ✅ `validateTransactionBalance` is now a pure read using big.js `>=` (allows spending the exact balance); removed the cache-write side effects (and a spurious unique-constraint rejection race) and the unused `blockDao` require.
+- **M5** — ✅ `messageEvent` now updates the frequency EMA on every message so a peer recovers after a burst (the old early-return permanently blacklisted any peer that ever flooded). Returns `{ignore, close}`: spam messages are dropped (connection + in-flight block/sync messages survive); the socket closes only on a sustained severe flood (`FREQUENCY.DISCONNECT`).
 
 ---
 

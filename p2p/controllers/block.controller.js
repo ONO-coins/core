@@ -5,11 +5,14 @@ const blockGeneralController = require('../../controllers/block.controller');
 const blockService = require('../../services/block.service');
 const blockTransactionService = require('../../services/block-transaction.service');
 const p2pActions = require('../p2p-actions');
+const database = require('../../databases/postgres');
 const state = require('../../state');
 const { logger } = require('../../managers/log.manager');
 const { UniqueConstraintError } = require('sequelize');
 const { ERROR_TYPES } = require('../../constructors/error.constructor');
 const { BLOCKCHAIN_SETTINGS } = require('../../constants/app.constants');
+
+const sequelize = database.getSequelize();
 
 /**
  * @typedef {import('databases/postgres/models/transaction.model').Transaction} Transaction
@@ -101,8 +104,24 @@ exports.onChain = async (chain, socket) => {
         const chainValidationResult = await blockTransactionService.validateChain(chain);
         if (!chainValidationResult.valid) throw new Error(chainValidationResult.error);
 
-        await blockTransactionDao.removeSinceBlockId(chainValidationResult.initialBlockId);
-        await balanceDao.flushBalancesFromBlock(chainValidationResult.initialBlockId);
+        // Roll our chain back to the common ancestor atomically, so the delete and
+        // the balance flush can't half-apply (review M3). Each replacement block is
+        // then applied in its own transaction below.
+        const rewindTransaction = await sequelize.transaction();
+        try {
+            await blockTransactionDao.removeSinceBlockId(
+                chainValidationResult.initialBlockId,
+                rewindTransaction,
+            );
+            await balanceDao.flushBalancesFromBlock(
+                chainValidationResult.initialBlockId,
+                rewindTransaction,
+            );
+            await rewindTransaction.commit();
+        } catch (rewindError) {
+            await rewindTransaction.rollback();
+            throw rewindError;
+        }
 
         for (let i = 0; i < chain.length; i++) {
             await blockGeneralController.onBlock(chain[i]);
