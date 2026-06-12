@@ -25,6 +25,7 @@ const block = {
         previousHash: { type: 'string', minLength: 64, maxLength: 64 },
         publicKey: { type: 'string', minLength: 66, maxLength: 66 },
         signature: { type: 'string', minLength: 128, maxLength: 128 },
+        generationSignature: { type: 'string', minLength: 64, maxLength: 64 },
         transactions: { type: 'array', items: transaction },
     },
     required: [
@@ -34,6 +35,7 @@ const block = {
         'previousHash',
         'publicKey',
         'signature',
+        'generationSignature',
         'transactions',
     ],
     additionalProperties: false,

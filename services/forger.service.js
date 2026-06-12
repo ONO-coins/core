@@ -14,9 +14,14 @@ const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
  * @returns {number}
  */
 exports.calcTarget = (latestBlock, publicKey) => {
-    const signatureWithPublicKey = latestBlock.signature + publicKey;
-    const hash = cryptoUtilsLib.hash(signatureWithPublicKey);
-    return parseInt(hash.substring(0, 9), 16);
+    // Seed the forging lottery from the parent's generation signature (non-grindable)
+    // plus the candidate's fixed public key — never the previous block's chosen ECDSA
+    // signature, which the prior forger could grind to bias the lottery (crypto review).
+    const seed = cryptoUtilsLib.generateDomainHash('forging-target', ['generationSignature', 'publicKey'], {
+        generationSignature: latestBlock.generationSignature,
+        publicKey,
+    });
+    return parseInt(seed.substring(0, 9), 16);
 };
 
 /**

@@ -32,7 +32,11 @@ exports.generateTransaction = (to, amount, keyPair) => {
         amount,
         fee: this.calculateFee(amount),
     };
-    newTransaction.hash = cryptoUtilsLib.generateHashFromObjectParams(HASH_PARAMS, newTransaction);
+    newTransaction.hash = cryptoUtilsLib.generateDomainHash(
+        'transaction',
+        HASH_PARAMS,
+        newTransaction,
+    );
     newTransaction.signature = keyPair
         .sign(Buffer.from(newTransaction.hash, 'hex'))
         .toString('hex');
@@ -40,7 +44,7 @@ exports.generateTransaction = (to, amount, keyPair) => {
 };
 
 exports.validateHash = (transaction) => {
-    const hash = cryptoUtilsLib.generateHashFromObjectParams(HASH_PARAMS, transaction);
+    const hash = cryptoUtilsLib.generateDomainHash('transaction', HASH_PARAMS, transaction);
     return hash === transaction.hash;
 };
 

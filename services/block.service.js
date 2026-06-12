@@ -34,8 +34,8 @@ const {
  */
 exports.generateHash = (block) => {
     const transactionHashes = block.transactions.map((transaction) => transaction.hash).toSorted();
-    const transactionsHashString = transactionHashes.join('');
-    const hash = cryptoUtilsLib.generateHashFromObjectParams(HASH_PARAMS, {
+    const transactionsHashString = transactionHashes.join(',');
+    const hash = cryptoUtilsLib.generateDomainHash('block', HASH_PARAMS, {
         ...block,
         transactionsHashString,
     });
@@ -55,6 +55,23 @@ exports.generateHash = (block) => {
  */
 exports.generateSignature = (block, keyPair) => {
     return keyPair.sign(Buffer.from(block.hash, 'hex')).toString('hex');
+};
+
+/**
+ * Deterministic, non-grindable forging seed: each block's generation signature is
+ * derived only from its parent's generation signature and the forger's (fixed)
+ * public key. Because the forger contributes nothing it can vary, it cannot grind
+ * the value to bias who forges next — unlike the old scheme that seeded the lottery
+ * from the previous block's freely-chosen ECDSA signature (crypto review).
+ * @param {string} previousGenerationSignature
+ * @param {string} publicKey
+ * @returns {string}
+ */
+exports.generateGenerationSignature = (previousGenerationSignature, publicKey) => {
+    return cryptoUtilsLib.generateDomainHash('generation', ['previous', 'publicKey'], {
+        previous: previousGenerationSignature,
+        publicKey,
+    });
 };
 
 /**
@@ -115,6 +132,10 @@ exports.generateBlock = (lastBlock, publicKey, timestamp, transactions, keyPair)
         publicKey: publicKey,
         timestamp: timestamp,
         target: this.createBlockTarget(lastBlock, timestamp),
+        generationSignature: this.generateGenerationSignature(
+            lastBlock.generationSignature,
+            publicKey,
+        ),
         transactions,
     };
     newBlock.hash = this.generateHash(newBlock);
@@ -255,4 +276,21 @@ exports.checkBlockPreviousHash = async (block) => {
  */
 exports.checkBlockSignature = (block) => {
     return cryptoUtilsLib.verifySignature(block.hash, block.signature, block.publicKey);
+};
+
+/**
+ * The generation signature is fully determined by the parent's generation signature
+ * and the forger's public key, so we recompute and compare rather than trusting the
+ * field — this is what makes the forging seed unforgeable and non-grindable.
+ * @param {Block} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockGenerationSignature = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    if (!previousBlock) return false;
+    const expected = this.generateGenerationSignature(
+        previousBlock.generationSignature,
+        block.publicKey,
+    );
+    return block.generationSignature === expected;
 };

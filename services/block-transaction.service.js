@@ -27,6 +27,10 @@ exports.validateBlock = async (block) => {
     const signatureValid = blockService.checkBlockSignature(block);
     if (!signatureValid) return { valid: false, error: `Block ${block.id} has invalid signature` };
 
+    const generationSignatureValid = await blockService.checkBlockGenerationSignature(block);
+    if (!generationSignatureValid)
+        return { valid: false, error: `Block ${block.id} has invalid generation signature` };
+
     const previousHashValid = await blockService.checkBlockPreviousHash(blockWithoutTransactions);
     if (!previousHashValid)
         return { valid: false, error: `Block ${block.id} has invalid previous block hash` };
