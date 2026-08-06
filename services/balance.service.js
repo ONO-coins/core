@@ -89,12 +89,21 @@ exports.updateByTransaction = async (transaction, blockId, databaseTransaction) 
  * @param {DatabaseTransaction} [databaseTransaction]
  */
 exports.updateByBlock = async (block, databaseTransaction) => {
-    let fees = 0;
+    // Accumulate fees with big.js end-to-end: a float `+=` drifts (e.g.
+    // 0.00001+0.00002+0.00003 → 0.00006000000000000001), and this credit feeds
+    // the forger's money balance. Convert to a number only at the DAO boundary.
+    let fees = new Big(0);
     for (let i = 0; i < block.transactions.length; i++) {
         await this.updateByTransaction(block.transactions[i], block.id, databaseTransaction);
-        fees += new Big(block.transactions[i].fee).toNumber();
+        fees = fees.plus(block.transactions[i].fee);
     }
-    await this.changeOrCreateBalance(block.publicKey, fees, 0, block.id, databaseTransaction);
+    await this.changeOrCreateBalance(
+        block.publicKey,
+        fees.toNumber(),
+        0,
+        block.id,
+        databaseTransaction,
+    );
 };
 
 /**
