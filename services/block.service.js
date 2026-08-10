@@ -58,11 +58,6 @@ exports.generateSignature = (block, keyPair) => {
 };
 
 /**
- * Deterministic, non-grindable forging seed: each block's generation signature is
- * derived only from its parent's generation signature and the forger's (fixed)
- * public key. Because the forger contributes nothing it can vary, it cannot grind
- * the value to bias who forges next — unlike the old scheme that seeded the lottery
- * from the previous block's freely-chosen ECDSA signature (crypto review).
  * @param {string} previousGenerationSignature
  * @param {string} publicKey
  * @returns {string}
@@ -75,25 +70,16 @@ exports.generateGenerationSignature = (previousGenerationSignature, publicKey) =
 };
 
 /**
- * Per-block chain work. A lower target is harder to forge, so it must contribute
- * more weight; MAX_TARGET / target makes the easiest block (target = MAX_TARGET)
- * worth ~1. Used to choose the canonical chain by cumulative work (review S3).
  * @param {number} target
  * @returns {Big}
  */
 exports.blockDifficulty = (target) => {
     const value = Number(target);
-    // A malicious chain could carry an out-of-range target; treat it as zero work
-    // (so it can never out-weigh an honest chain) rather than dividing by zero.
-    // Per-block validation (checkBlockTarget) rejects the block regardless.
     if (!Number.isFinite(value) || value < BLOCKCHAIN_SETTINGS.MIN_TARGET) return new Big(0);
     return new Big(BLOCKCHAIN_SETTINGS.MAX_TARGET).div(value);
 };
 
 /**
- * Total chain work of a list of blocks (e.g. the contested suffix since a common
- * ancestor). Forks only differ inside the mutable window, so this is always a
- * short list and never needs a stored cumulative column.
  * @param {Array<{target: number}>} blocks
  * @returns {Big}
  */
@@ -229,10 +215,6 @@ exports.setImmutableBlockId = async (id) => {
 };
 
 /**
- * A block must advance time past its parent. Without this, a forger can backdate
- * or stretch `elapsedTime` to inflate its hit and always win fork resolution
- * (review S4). Forging is only possible when elapsedTime > 0, so honest blocks
- * always satisfy this.
  * @param {Block} block
  * @returns {Promise<boolean>}
  */
