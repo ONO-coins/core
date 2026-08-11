@@ -25,6 +25,7 @@ const block = {
         previousHash: { type: 'string', minLength: 64, maxLength: 64 },
         publicKey: { type: 'string', minLength: 66, maxLength: 66 },
         signature: { type: 'string', minLength: 128, maxLength: 128 },
+        generationSignature: { type: 'string', minLength: 64, maxLength: 64 },
         transactions: { type: 'array', items: transaction },
     },
     required: [
@@ -34,6 +35,7 @@ const block = {
         'previousHash',
         'publicKey',
         'signature',
+        'generationSignature',
         'transactions',
     ],
     additionalProperties: false,
@@ -88,6 +90,15 @@ module.exports = {
             },
         },
         required: ['peer'],
+        additionalProperties: false,
+    },
+    [P2P_MESSAGE_TYPES.STATUS]: {
+        type: 'object',
+        properties: {
+            lastBlockId: { type: 'integer', minimum: 0 },
+            lastBlockHash: { type: 'string', minLength: 64, maxLength: 64 },
+        },
+        required: ['lastBlockId', 'lastBlockHash'],
         additionalProperties: false,
     },
 };

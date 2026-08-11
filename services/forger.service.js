@@ -1,3 +1,4 @@
+const Big = require('big.js');
 const balanceService = require('./balance.service');
 const blockDao = require('../databases/postgres/dao/block.dao');
 const cryptoUtilsLib = require('../lib/crypto-utils.lib');
@@ -13,24 +14,33 @@ const { BLOCKCHAIN_SETTINGS } = require('../constants/app.constants');
  * @returns {number}
  */
 exports.calcTarget = (latestBlock, publicKey) => {
-    const signatureWithPublicKey = latestBlock.signature + publicKey;
-    const hash = cryptoUtilsLib.hash(signatureWithPublicKey);
-    return parseInt(hash.substring(0, 9), 16);
+    const seed = cryptoUtilsLib.generateDomainHash(
+        'forging-target',
+        ['generationSignature', 'publicKey'],
+        {
+            generationSignature: latestBlock.generationSignature,
+            publicKey,
+        },
+    );
+    return parseInt(seed.substring(0, 9), 16);
 };
 
 /**
+ * The hit can exceed Number.MAX_SAFE_INTEGER (previousTarget * burned * elapsed),
+ * so it is computed and compared with big.js — otherwise two nodes can round
+ * differently and disagree on a close fork decision (review M1).
  * @param {Block} latestBlock
  * @param {number} timestamp
  * @param {string} publicKey
- * @returns {Promise<number>}
+ * @returns {Promise<Big>}
  */
 exports.calcHit = async (latestBlock, timestamp, publicKey) => {
     const previousTarget = Number(latestBlock.target);
     const forgerBalance = await balanceService.getBurnedBalance(publicKey, latestBlock.id);
-    if (forgerBalance < BLOCKCHAIN_SETTINGS.MIN_FORGER_BALANCE) return 0;
+    if (forgerBalance < BLOCKCHAIN_SETTINGS.MIN_FORGER_BALANCE) return new Big(0);
 
     const elapsedTime = timestamp - latestBlock.timestamp;
-    return previousTarget * forgerBalance * elapsedTime;
+    return new Big(previousTarget).times(forgerBalance).times(elapsedTime);
 };
 
 /**
@@ -43,7 +53,8 @@ exports.verifyHit = async (latestBlock, timestamp, publicKey) => {
     const target = this.calcTarget(latestBlock, publicKey);
     const hit = await this.calcHit(latestBlock, timestamp, publicKey);
 
-    return target < hit;
+    console.log(target, hit.toNumber());
+    return hit.gt(target);
 };
 
 /**
@@ -64,6 +75,8 @@ exports.predictForgingTimestamp = async (latestBlock, publicKey) => {
     const target = this.calcTarget(latestBlock, publicKey);
     const previousTarget = Number(latestBlock.target);
     const forgerBalance = await balanceService.getBurnedBalance(publicKey, latestBlock.id);
-    const nextTimestamp = target / (previousTarget * forgerBalance) + latestBlock.timestamp;
-    return Math.ceil(nextTimestamp);
+    const divisor = new Big(previousTarget).times(forgerBalance);
+    if (divisor.eq(0)) return Infinity;
+    const nextTimestamp = new Big(target).div(divisor).plus(latestBlock.timestamp);
+    return Math.ceil(nextTimestamp.toNumber());
 };

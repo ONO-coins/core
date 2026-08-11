@@ -99,42 +99,51 @@ exports.init = async () => {
 };
 
 /**
+ * @typedef {Object} MessageVerdict
+ * @property {boolean} ignore Drop this message without processing it.
+ * @property {boolean} close Disconnect the peer (sustained severe flood).
+ */
+
+/**
+ * Rolling spam check on a per-peer EMA of inter-message intervals. The frequency
+ * is updated on EVERY message so a peer that briefly burst recovers — the old
+ * code skipped the update once below SYNCING_MIN, permanently blacklisting any
+ * peer that ever flooded. A flagged message is now only dropped (the connection
+ * and any in-flight block/sync messages survive); the socket is closed solely for
+ * a sustained severe flood (review M5).
  * @param {string} key
  * @param {MessageType} messageType
- * @returns {Promise<boolean>}
+ * @returns {Promise<MessageVerdict>}
  */
 exports.messageEvent = async (key, messageType) => {
     const isSyncing = state.getState(state.KEYS.SYNCING);
-    if (isSyncing) return;
+    if (isSyncing) return { ignore: false, close: false };
 
     const databaseTransaction = await sequelize.transaction();
     const peer = await peerDao.findByKey(key, databaseTransaction);
     if (!peer) {
         await databaseTransaction.commit();
-        return false;
-    }
-
-    const minAllowedFrequency =
-        messageType === P2P_MESSAGE_TYPES.SYNC_REQUEST ? FREQUENCY.SYNCING_MIN : FREQUENCY.MIN;
-    const isSpam = peer.messageFrequency < minAllowedFrequency;
-
-    if (peer.messageFrequency < FREQUENCY.SYNCING_MIN) {
-        await databaseTransaction.commit();
-        return isSpam;
+        return { ignore: false, close: false };
     }
 
     const interval = new Date().getTime() - peer.lastSeen.getTime();
     const newFrequency =
         (peer.messageFrequency * (FREQUENCY.MESSAGES_COUNT - 1) + interval) /
         FREQUENCY.MESSAGES_COUNT;
+    const messageFrequency = Math.min(newFrequency, FREQUENCY.DEFAULT);
     await peerDao.update(
         { key },
-        { lastSeen: new Date(), messageFrequency: Math.min(newFrequency, FREQUENCY.DEFAULT) },
+        { lastSeen: new Date(), messageFrequency },
         databaseTransaction,
     );
     await databaseTransaction.commit();
 
-    return isSpam;
+    const minAllowedFrequency =
+        messageType === P2P_MESSAGE_TYPES.SYNC_REQUEST ? FREQUENCY.SYNCING_MIN : FREQUENCY.MIN;
+    return {
+        ignore: messageFrequency < minAllowedFrequency,
+        close: messageFrequency < FREQUENCY.DISCONNECT,
+    };
 };
 
 /**

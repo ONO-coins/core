@@ -19,6 +19,7 @@ const { foreignKey } = require('../../../lib/postgres-helper.lib');
  * @property {string} previousHash
  * @property {string} publicKey
  * @property {string} signature
+ * @property {string} generationSignature
  */
 
 /**
@@ -57,6 +58,10 @@ module.exports = (sequelize, dataTypes) => {
             },
             signature: {
                 type: dataTypes.STRING(128),
+                allowNull: false,
+            },
+            generationSignature: {
+                type: dataTypes.STRING(64),
                 allowNull: false,
             },
         },

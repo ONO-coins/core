@@ -1,10 +1,16 @@
 {
     "name": "ono-core",
-    "version": "1.1.4",
+    "version": "1.2.5",
     "description": "ono cryptocurrency core",
     "main": "app.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/unit/**/*.test.js\" \"tests/property/**/*.test.js\" \"tests/fuzz/**/*.test.js\" \"tests/consensus/**/*.test.js\" \"tests/api/**/*.test.js\"",
+        "test:unit": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/unit/**/*.test.js\"",
+        "test:property": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/property/**/*.test.js\" \"tests/fuzz/**/*.test.js\"",
+        "test:consensus": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/consensus/**/*.test.js\"",
+        "test:api": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/api/**/*.test.js\"",
+        "test:integration": "node --env-file=.env.test.local --experimental-test-module-mocks --disable-warning=ExperimentalWarning --test \"tests/integration/**/*.test.js\"",
+        "test:coverage": "node --experimental-test-module-mocks --disable-warning=ExperimentalWarning --experimental-test-coverage --test-coverage-include='services/**' --test-coverage-include='lib/**' --test-coverage-include='controllers/**' --test-coverage-include='constructors/**' --test-coverage-include='p2p/**' --test \"tests/unit/**/*.test.js\" \"tests/property/**/*.test.js\" \"tests/fuzz/**/*.test.js\" \"tests/consensus/**/*.test.js\" \"tests/api/**/*.test.js\"",
         "clean-start": "node app.js",
         "start": "node --env-file=.env app.js",
         "dev": "node --env-file=.env --watch app.js | pino-pretty -S -i pid,hostname",

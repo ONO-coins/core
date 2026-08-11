@@ -26,67 +26,84 @@ exports.onBlock = async (blockData) => {
     const processingBlockId = state.getState(state.KEYS.PROCESSING_BLOCK_ID);
     if (blockData.id === processingBlockId) return false;
 
+    // PROCESSING_BLOCK_ID is a concurrency lock, not a "last processed" marker.
+    // It must be cleared on every exit (success or failure) so a competing block
+    // at the same height can still be processed for fork resolution (review S1).
     state.setState(state.KEYS.PROCESSING_BLOCK_ID, blockData.id);
 
-    const validTimers = blockService.checkNewBlockTimings(blockData);
-    if (!validTimers) throw new Error('Invalid block timings');
-
-    // check if block exists or we are too far away
-    const existingCheck = await blockService.checkNewBlockId(blockData);
-    if (existingCheck === BLOCK_ID_ACTIONS.NEED_REPLACE) {
-        const validSum = await blockTransactionService.compareBlockTransactionSum(blockData);
-        if (!validSum) throw new Error(`Block already exists.`);
-
-        const validHit = await sharedBlockService.compareHit(blockData);
-        if (!validHit) throw new Error(`Block already exists.`);
-
-        await sharedBlockService.removeChainSince(blockData.id - 1);
-    }
-
-    // Check consensus
-    const consensusValid = await forgerService.verifyBlockHit(blockData);
-    if (!consensusValid) throw new Error('Block with invalid consensus');
-
-    // validate block
-    const blockValidationResult = await blockTransactionService.validateBlock(blockData);
-    if (!blockValidationResult.valid) throw new Error(blockValidationResult.error);
-
-    const databaseTransaction = await sequelize.transaction();
-    const { transactions, ...blockWithoutTransactions } = blockData;
-
     try {
-        // check if existed transactions are in other block
-        const transactionHashes = transactions.map((transaction) => transaction.hash);
-        const existsInBlock = await blockTransactionDao.getOneInOtherBlock(
-            transactionHashes,
-            blockData.id,
-        );
-        if (existsInBlock) {
-            throw new Error(
-                `Transaction ${existsInBlock.transactionHash} already in block ${existsInBlock.blockId}`,
-            );
+        const validTimers = blockService.checkNewBlockTimings(blockData);
+        if (!validTimers) throw new Error('Invalid block timings');
+
+        // check if block exists or we are too far away
+        const existingCheck = await blockService.checkNewBlockId(blockData);
+        const needReplace = existingCheck === BLOCK_ID_ACTIONS.NEED_REPLACE;
+        if (needReplace) {
+            const validSum = await blockTransactionService.compareBlockTransactionSum(blockData);
+            if (!validSum) throw new Error(`Block already exists.`);
+
+            const heavier = await sharedBlockService.compareBlockDifficulty(blockData);
+            if (!heavier) throw new Error(`Block already exists.`);
         }
 
-        // save new transactions
-        await transactionDao.bulkUpsert(transactions, databaseTransaction);
+        // Check consensus. All checks above and below are read-only on the chain,
+        // so nothing is mutated until the replacement is proven valid (review S2).
+        const consensusValid = await forgerService.verifyBlockHit(blockData);
+        if (!consensusValid) throw new Error('Block with invalid consensus');
 
-        // change balances records
-        await balanceService.updateByBlock(blockData, databaseTransaction);
+        // validate block
+        const blockValidationResult = await blockTransactionService.validateBlock(blockData);
+        if (!blockValidationResult.valid) throw new Error(blockValidationResult.error);
 
-        // save new block
-        await blockDao.create(blockWithoutTransactions, databaseTransaction);
+        const databaseTransaction = await sequelize.transaction();
+        const { transactions, ...blockWithoutTransactions } = blockData;
 
-        // add transaction to new block
-        await blockTransactionDao.bulkCreate(transactionHashes, blockData.id, databaseTransaction);
+        try {
+            // Replace a competing tip atomically: the rollback and the insert share
+            // one transaction, so a failure here can never leave us without a block.
+            if (needReplace) {
+                await sharedBlockService.removeChainSince(blockData.id - 1, databaseTransaction);
+            }
 
-        // remove block transactions from transaction pool
-        await transactionPoolDao.dropTransactions(transactionHashes, databaseTransaction);
+            // check if existed transactions are in other block
+            const transactionHashes = transactions.map((transaction) => transaction.hash);
+            const existsInBlock = await blockTransactionDao.getOneInOtherBlock(
+                transactionHashes,
+                blockData.id,
+                databaseTransaction,
+            );
+            if (existsInBlock) {
+                throw new Error(
+                    `Transaction ${existsInBlock.transactionHash} already in block ${existsInBlock.blockId}`,
+                );
+            }
 
-        await databaseTransaction.commit();
-        return true;
-    } catch (err) {
+            // save new transactions
+            await transactionDao.bulkUpsert(transactions, databaseTransaction);
+
+            // change balances records
+            await balanceService.updateByBlock(blockData, databaseTransaction);
+
+            // save new block
+            await blockDao.create(blockWithoutTransactions, databaseTransaction);
+
+            // add transaction to new block
+            await blockTransactionDao.bulkCreate(
+                transactionHashes,
+                blockData.id,
+                databaseTransaction,
+            );
+
+            // remove block transactions from transaction pool
+            await transactionPoolDao.dropTransactions(transactionHashes, databaseTransaction);
+
+            await databaseTransaction.commit();
+            return true;
+        } catch (err) {
+            await databaseTransaction.rollback();
+            throw err;
+        }
+    } finally {
         state.setState(state.KEYS.PROCESSING_BLOCK_ID, 0);
-        await databaseTransaction.rollback();
-        throw err;
     }
 };

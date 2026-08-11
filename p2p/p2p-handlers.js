@@ -1,6 +1,7 @@
 const p2pSockets = require('./p2p-sockets');
 const p2pRouter = require('./p2p-router');
 const p2pActions = require('./p2p-actions');
+const blockController = require('./controllers/block.controller');
 const peerService = require('../services/peer.service');
 const state = require('../state');
 const { logger } = require('../managers/log.manager');
@@ -21,6 +22,9 @@ exports.socketConnected = async (socket, socketKey, serverConnection) => {
     logger.info(`Socket ${socketKey} connected, current connections count: ${sockets.size}`);
     p2pRouter.messageHandler(socket, socketKey);
     p2pActions.askForPeers(socket);
+    // Advertise our chain tip immediately so a node that missed block broadcasts
+    // (or just reconnected) discovers it is behind and syncs (review S6).
+    await blockController.sendStatus(socket);
     if (serverConnection) {
         await peerService.serverConnection(socketKey);
         const nodeId = state.getState(state.KEYS.NODE_ID);

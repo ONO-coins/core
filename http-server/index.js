@@ -46,7 +46,13 @@ function onError(error, port) {
     }
 }
 
-exports.init = async () => {
+/**
+ * Builds the fully-wired Express app (middleware → OpenAPI validation → routers
+ * → error handlers) WITHOUT binding a socket. Extracted from init() so the API
+ * can be exercised in-process by tests; init() below is unchanged in behaviour.
+ * @returns {import('express').Express}
+ */
+exports.createApp = () => {
     const app = express();
     app.use(logManager.middleware);
     app.use(cors({ exposedHeaders: [TOTAL_COUNT_HEADER] }));
@@ -61,6 +67,11 @@ exports.init = async () => {
 
     app.use(errorManager.notFound);
     app.use(errorManager.errorHandler);
+    return app;
+};
+
+exports.init = async () => {
+    const app = this.createApp();
 
     const port = process.env.HTTP_PORT;
     app.set('port', port);

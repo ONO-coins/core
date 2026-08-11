@@ -34,8 +34,8 @@ const {
  */
 exports.generateHash = (block) => {
     const transactionHashes = block.transactions.map((transaction) => transaction.hash).toSorted();
-    const transactionsHashString = transactionHashes.join('');
-    const hash = cryptoUtilsLib.generateHashFromObjectParams(HASH_PARAMS, {
+    const transactionsHashString = transactionHashes.join(',');
+    const hash = cryptoUtilsLib.generateDomainHash('block', HASH_PARAMS, {
         ...block,
         transactionsHashString,
     });
@@ -55,6 +55,36 @@ exports.generateHash = (block) => {
  */
 exports.generateSignature = (block, keyPair) => {
     return keyPair.sign(Buffer.from(block.hash, 'hex')).toString('hex');
+};
+
+/**
+ * @param {string} previousGenerationSignature
+ * @param {string} publicKey
+ * @returns {string}
+ */
+exports.generateGenerationSignature = (previousGenerationSignature, publicKey) => {
+    return cryptoUtilsLib.generateDomainHash('generation', ['previous', 'publicKey'], {
+        previous: previousGenerationSignature,
+        publicKey,
+    });
+};
+
+/**
+ * @param {number} target
+ * @returns {Big}
+ */
+exports.blockDifficulty = (target) => {
+    const value = Number(target);
+    if (!Number.isFinite(value) || value < BLOCKCHAIN_SETTINGS.MIN_TARGET) return new Big(0);
+    return new Big(BLOCKCHAIN_SETTINGS.MAX_TARGET).div(value);
+};
+
+/**
+ * @param {Array<{target: number}>} blocks
+ * @returns {Big}
+ */
+exports.cumulativeDifficulty = (blocks) => {
+    return blocks.reduce((sum, block) => sum.plus(this.blockDifficulty(block.target)), new Big(0));
 };
 
 /**
@@ -88,6 +118,10 @@ exports.generateBlock = (lastBlock, publicKey, timestamp, transactions, keyPair)
         publicKey: publicKey,
         timestamp: timestamp,
         target: this.createBlockTarget(lastBlock, timestamp),
+        generationSignature: this.generateGenerationSignature(
+            lastBlock.generationSignature,
+            publicKey,
+        ),
         transactions,
     };
     newBlock.hash = this.generateHash(newBlock);
@@ -181,6 +215,16 @@ exports.setImmutableBlockId = async (id) => {
 };
 
 /**
+ * @param {Block} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockTimestamp = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    if (!previousBlock) return false;
+    return block.timestamp > previousBlock.timestamp;
+};
+
+/**
  * @param {BlockWithTransactions} block
  * @returns {Promise<boolean>}
  */
@@ -214,4 +258,21 @@ exports.checkBlockPreviousHash = async (block) => {
  */
 exports.checkBlockSignature = (block) => {
     return cryptoUtilsLib.verifySignature(block.hash, block.signature, block.publicKey);
+};
+
+/**
+ * The generation signature is fully determined by the parent's generation signature
+ * and the forger's public key, so we recompute and compare rather than trusting the
+ * field — this is what makes the forging seed unforgeable and non-grindable.
+ * @param {Block} block
+ * @returns {Promise<boolean>}
+ */
+exports.checkBlockGenerationSignature = async (block) => {
+    const previousBlock = await blockDao.getById(block.id - 1);
+    if (!previousBlock) return false;
+    const expected = this.generateGenerationSignature(
+        previousBlock.generationSignature,
+        block.publicKey,
+    );
+    return block.generationSignature === expected;
 };

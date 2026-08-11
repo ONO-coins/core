@@ -165,6 +165,32 @@ exports.calculateBurnedBalance = async (address, databaseTransaction) => {
 };
 
 /**
+ * Burned balance counting only burns confirmed in blocks up to and including
+ * `maxBlockId`. Height-scoping makes the value identical on every node that
+ * agrees on the chain prefix, so consensus hit verification cannot diverge (S5).
+ * @param {string} address
+ * @param {number} maxBlockId
+ * @param {DatabaseTransaction} [databaseTransaction]
+ * @returns {Promise<number>}
+ */
+exports.calculateBurnedBalanceUpToBlock = async (address, maxBlockId, databaseTransaction) => {
+    const burnedBalance =
+        (await transaction.sum('amount', {
+            where: { from: address, to: BLOCKCHAIN_SETTINGS.BURN_ADDRESS },
+            include: [
+                {
+                    association: BLOCK_TRANSACTION_MODEL_NAME,
+                    required: true,
+                    attributes: [],
+                    where: { blockId: { [Op.lte]: maxBlockId } },
+                },
+            ],
+            ...postgresHelperLib.databaseTransactionParams(databaseTransaction),
+        })) || 0;
+    return burnedBalance;
+};
+
+/**
  * @typedef {Object} GetByAddressFilters
  * @property {number} [maxId]
  * @property {string} [direction]
